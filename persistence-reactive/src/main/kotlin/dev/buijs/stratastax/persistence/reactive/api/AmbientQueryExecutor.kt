@@ -17,24 +17,25 @@
 package dev.buijs.stratastax.persistence.reactive.api
 
 import dev.buijs.stratastax.persistence.core.spi.RowContext
-import dev.buijs.stratastax.persistence.reactive.app.currentTransaction
+import dev.buijs.stratastax.persistence.reactive.internal.currentTransaction
+import dev.buijs.stratastax.persistence.reactive.spi.QueryExecutor
 import org.jooq.Query
 
 /**
- * A [QueryExecutor] that runs every query inside the transaction the calling coroutine is in (one
- * started by [owner]'s [VertxTransactionalExecutor]), or on [fallback] when there is none.
+ * A [QueryExecutor] that runs every query inside the transaction the calling coroutine is in - one
+ * started by a [VertxTransactionalExecutor] over [owner] - or on [fallback] when there is none.
  *
- * This is the executor the access classes get injected: a read, or any statement an access class
- * issues outside its own `withTransaction` block, then sees and takes part in the caller's
- * [dev.buijs.stratastax.persistence.core.api.UnitOfWork.transaction] instead of silently running on
- * a different connection in autocommit mode.
+ * This is the executor the access classes get: a read then sees, and takes part in, the caller's
+ * [dev.buijs.stratastax.persistence.core.api.UnitOfWork.transaction] instead of running on another
+ * connection in autocommit mode. Create it with [VertxTransactionalExecutor.ambientQueryExecutor].
  */
-class AmbientQueryExecutor(
+public class AmbientQueryExecutor(
     private val owner: Any,
     private val fallback: QueryExecutor,
 ) : QueryExecutor {
 
-    private suspend fun current(): QueryExecutor = currentTransaction(owner)?.executor ?: fallback
+    private suspend fun current(): QueryExecutor =
+        currentTransaction(owner)?.executor ?: fallback
 
     override suspend fun executeAndGetAll(query: Query): List<RowContext> =
         current().executeAndGetAll(query)

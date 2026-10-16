@@ -2,8 +2,21 @@
 ambient-context = "1.0.0"
 entity = "1.0.0"
 search = "1.0.0"
+# Jackson 3 (tools.jackson): coexists with the Jackson 2 Quarkus 3.x ships, see README.
+jackson3 = "3.2.3"
+# The versions below are managed by the Quarkus BOM in consuming applications; these
+# pins only apply to this repository's own build. Keep them in sync with Quarkus 3.38.1.
+vertx = "4.5.30"
+mutiny-vertx = "3.23.0"
+postgresql = "42.7.13"
 
 [libraries]
 ambient-context = { group = "dev.buijs.stratastax", name = "ambient-context", version.ref = "ambient-context" }
 entity = { group = "dev.buijs.stratastax", name = "entity", version.ref = "entity" }
 search-core = { group = "dev.buijs.stratastax", name = "search-core", version.ref = "search" }
+jackson3-databind = { group = "tools.jackson.core", name = "jackson-databind", version.ref = "jackson3" }
+mutiny-vertx-pg-client = { group = "io.smallrye.reactive", name = "smallrye-mutiny-vertx-pg-client", version.ref = "mutiny-vertx" }
+mutiny-vertx-core = { group = "io.smallrye.reactive", name = "smallrye-mutiny-vertx-core", version.ref = "mutiny-vertx" }
+vertx-pg-client = { group = "io.vertx", name = "vertx-pg-client", version.ref = "vertx" }
+vertx-sql-client = { group = "io.vertx", name = "vertx-sql-client", version.ref = "vertx" }
+postgresql = { group = "org.postgresql", name = "postgresql", version.ref = "postgresql" }

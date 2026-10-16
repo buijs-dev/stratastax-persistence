@@ -16,6 +16,20 @@
  */
 package dev.buijs.stratastax.persistence.core.spi
 
-fun interface RowMapper<T> {
-    fun map(row: RowContext): T
+/** Maps one row, read through a [RowContext], to a [T]. */
+public fun interface RowMapper<T> {
+
+    public fun map(row: RowContext): T
+}
+
+/** Maps a create command [C] to a backend-specific bag of values [V] ready to be inserted. */
+public fun interface CreateMapper<C, V> {
+
+    public fun map(command: C): V
+}
+
+/** Maps an update command [U] to a backend-specific bag of values [V] to be written. */
+public fun interface UpdateMapper<U, V> {
+
+    public fun map(command: U): V
 }

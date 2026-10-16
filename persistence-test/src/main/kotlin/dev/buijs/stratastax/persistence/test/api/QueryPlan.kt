@@ -16,14 +16,20 @@
  */
 package dev.buijs.stratastax.persistence.test.api
 
+import dev.buijs.stratastax.persistence.core.spi.RenderedQuery
 import kotlin.time.Duration
 
+/** Runs a statement through the database's own planner to find out what it actually did. */
+public interface QueryPlanAnalyzer {
+
+    public suspend fun analyze(query: RenderedQuery): QueryPlan
+}
+
 /**
- * One node of a Postgres `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` plan tree - a direct model of
- * the fields this testkit's assertions actually consult, not a full mirror of every field Postgres
- * can emit.
+ * One node of an `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` plan tree: the fields the assertions
+ * use, not every field Postgres reports.
  */
-data class PlanNode(
+public data class PlanNode(
     val nodeType: String,
     val relationName: String?,
     val indexName: String?,
@@ -37,46 +43,58 @@ data class PlanNode(
 ) {
 
     /** This node and every descendant, depth-first. */
-    fun flatten(): List<PlanNode> = listOf(this) + children.flatMap { it.flatten() }
+    public fun flatten(): List<PlanNode> = listOf(this) + children.flatMap { it.flatten() }
+
+    /** Whether this node scans a whole table. */
+    public val isSequentialScan: Boolean
+        get() = nodeType == "Seq Scan"
+
+    /**
+     * The plan's shape - node types, relations and indexes, without row counts, buffers or timing,
+     * which vary from run to run - one node per line, children indented.
+     */
+    public fun renderTree(indent: String = ""): String =
+        buildString {
+            append(indent).append(nodeType)
+            val details =
+                listOfNotNull(relationName?.let { "relation=$it" }, indexName?.let { "index=$it" })
+            if (details.isNotEmpty()) {
+                append(
+                    details.joinToString(", ", prefix = " (", postfix = ")"),
+                )
+            }
+
+            children.forEach { child -> append("\n").append(child.renderTree("$indent  ")) }
+        }
 }
 
-/**
- * A `Node Type` is a sequential scan if it's exactly `"Seq Scan"` (Postgres never varies this
- * string).
- */
-fun PlanNode.isSequentialScan(): Boolean = nodeType == "Seq Scan"
-
-/**
- * A stable, human-readable rendering of the plan's *shape* - node types, relations, indexes -
- * deliberately omitting row counts/buffer stats/timing, which vary run to run even for an identical
- * query against unchanged data (autovacuum, cache warmth, ...) and would make a snapshot comparison
- * flaky-by-design rather than catching a real structural change (e.g. an `Index Scan` silently
- * turning into a `Seq Scan`/`Hash Join`).
- */
-fun PlanNode.renderTree(indent: String = ""): String =
-    buildString {
-        append(indent)
-        append(nodeType)
-        val details =
-            listOfNotNull(relationName?.let { "relation=$it" }, indexName?.let { "index=$it" })
-        if (details.isNotEmpty()) {
-            append(" (")
-            append(details.joinToString(", "))
-            append(")")
-        }
-
-        children.forEach { child ->
-            append("\n")
-            append(child.renderTree("$indent  "))
-        }
-    }
-
-/** The parsed result of running `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` for one query. */
-data class QueryPlan(
+/** The plan of one statement, see [QueryPlanAnalyzer]. */
+public data class QueryPlan(
     val planningTime: Duration,
     val executionTime: Duration,
     val root: PlanNode,
 ) {
 
-    fun flatten(): List<PlanNode> = root.flatten()
+    /** Every node of the plan, depth-first. */
+    public fun flatten(): List<PlanNode> = root.flatten()
+
+    /** The nodes that scan a whole table. */
+    public fun sequentialScans(): List<PlanNode> = flatten().filter { it.isSequentialScan }
+
+    /** The names of the indexes the plan used. */
+    public fun indexesUsed(): Set<String> = flatten().mapNotNull { it.indexName }.toSet()
+
+    /** The rows the leaf nodes read: their actual rows times their loops. */
+    public fun rowsRead(): Long =
+        flatten().filter { it.children.isEmpty() }.sumOf {
+            (it.actualRows ?: 0L) *
+                (it.actualLoops ?: 1L)
+        }
+
+    /** The shared buffer blocks read, from cache and from disk. */
+    public fun bufferReads(): Long =
+        flatten().sumOf {
+            (it.sharedHitBlocks ?: 0L) +
+                (it.sharedReadBlocks ?: 0L)
+        }
 }

@@ -16,74 +16,61 @@
  */
 package dev.buijs.stratastax.persistence.reactive.api
 
-import dev.buijs.stratastax.ambient.context.api.currentPropagatedContext
-import dev.buijs.stratastax.ambient.context.api.inheritedUni
 import dev.buijs.stratastax.persistence.core.api.TransactionOptions
 import dev.buijs.stratastax.persistence.core.api.TransactionPropagation
 import dev.buijs.stratastax.persistence.core.spi.QueryExecutionListener
-import dev.buijs.stratastax.persistence.reactive.app.ActiveTransaction
-import dev.buijs.stratastax.persistence.reactive.app.PostgresSqlRenderer
-import dev.buijs.stratastax.persistence.reactive.app.TransactionContextElement
-import dev.buijs.stratastax.persistence.reactive.app.TransactionStatements
-import dev.buijs.stratastax.persistence.reactive.app.currentTransaction
+import dev.buijs.stratastax.persistence.reactive.internal.ActiveTransaction
+import dev.buijs.stratastax.persistence.reactive.internal.TransactionContextElement
+import dev.buijs.stratastax.persistence.reactive.internal.currentTransaction
+import dev.buijs.stratastax.persistence.reactive.spi.PersistenceDialect
+import dev.buijs.stratastax.persistence.reactive.spi.QueryExecutor
+import dev.buijs.stratastax.persistence.reactive.spi.TransactionalExecutor
 import io.smallrye.mutiny.coroutines.awaitSuspending
 import io.vertx.mutiny.sqlclient.Pool
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.coroutines.CoroutineContext
 
 /**
- * [TransactionalExecutor] over a Vert.x Mutiny [Pool]. A new transaction checks out one connection
- * ([Pool.withConnection]), issues `BEGIN`, runs [withTransaction]'s block and ends with `COMMIT`,
- * or with `ROLLBACK` when the block throws. A fresh [VertxQueryExecutor] is created per
- * transaction, scoped to that one connection (which is itself an `SqlClient`), so every query the
- * block issues through it runs in the same transaction - [renderer]/[listeners] are forwarded to it
- * unchanged, and it tags every statement with the transaction's own id. The transaction-control
- * statements (`BEGIN`, `SAVEPOINT`, `COMMIT`, ...) run through that same executor, so a listener
- * observes a transaction's complete statement sequence, not just its data queries.
+ * A [TransactionalExecutor] over a Vert.x Mutiny [Pool].
  *
- * The transaction is deliberately driven with plain `BEGIN`/`COMMIT`/`ROLLBACK` statements rather
- * than Vert.x's own `Pool.withTransaction`: that API rolls the *whole* transaction back as soon as
- * a single statement fails, which makes savepoints (below) impossible.
+ * A new transaction takes one connection from the pool, runs `BEGIN`, the block, and `COMMIT` -
+ * or `ROLLBACK` when the block throws or is cancelled. The rollback always completes before the
+ * connection goes back to the pool, so a pooled connection never carries an open transaction. The
+ * transaction-control statements run through the same [VertxQueryExecutor] as the block's queries,
+ * so every [listeners] entry sees the complete statement sequence under one transaction id.
  *
- * `Pool.withConnection { connection -> ... }`'s callback is a plain Vert.x reactive-pool callback,
- * not a coroutine resumption - nothing propagates into it automatically, which is why whatever
- * ambient context the block's caller was carrying (e.g. a `SecurityIdentity`) must be captured via
- * [currentPropagatedContext] *before* entering it, and re-installed via [inheritedUni] on the other
- * side.
+ * A call made while a transaction of this executor runs, with
+ * [TransactionPropagation.REQUIRED], joins it inside a `SAVEPOINT`: Postgres refuses every further
+ * statement of a transaction in which one failed, so the savepoint is what lets a caller catch a
+ * failed nested call and carry on. [TransactionPropagation.REQUIRES_NEW] always takes a new
+ * connection.
  *
- * The running transaction itself travels the same way, as a [TransactionContextElement] matched to
- * [pool] by identity (never `equals` - see [TransactionContextElement.get]): a nested
- * [withTransaction] call (e.g. a `create()` called from inside a
- * [dev.buijs.stratastax.persistence.core.api.UnitOfWork.transaction] block) finds it and, with
- * [TransactionPropagation.REQUIRED], joins it inside a `SAVEPOINT` instead of opening a second
- * connection. The savepoint matters: Postgres refuses every further statement of a transaction in
- * which one statement failed, so without it a caller could never catch a failed nested call and
- * carry on (which every batch fallback - see `JooqCreateAccess.createAll` - relies on). An
- * [AmbientQueryExecutor] created for the same [pool] routes reads into the running transaction too.
+ * Plain `BEGIN`/`COMMIT` statements are used rather than Vert.x's `Pool.withTransaction`, which
+ * rolls the whole transaction back as soon as one statement fails and so rules out savepoints.
  *
- * [dispatcher] defaults to [Dispatchers.Default] - correct only for a consumer with no Quarkus
- * request-scoped CDI dependencies inside the block. `quarkus-starter`'s `PersistenceProducer`
- * supplies `managedExecutor.asCoroutineDispatcher()` instead, the fix for a real bug where
- * `@Authenticated`/other `@RequestScoped`-dependent code called from inside the block threw
- * `ContextNotActiveException` on `Dispatchers.Default`'s worker threads - see [inheritedUni]'s own
- * kdoc.
+ * The running transaction travels in the coroutine context, matched to [pool] by identity. The
+ * block runs on [dispatcher]: pass a dispatcher that propagates the request context (e.g. a
+ * MicroProfile `ManagedExecutor`) when code inside the block needs it.
  */
-class VertxTransactionalExecutor(
+public class VertxTransactionalExecutor(
     private val pool: Pool,
-    private val renderer: SqlRenderer = PostgresSqlRenderer(),
+    private val dialect: PersistenceDialect = PostgresDialect,
     private val listeners: List<QueryExecutionListener> = emptyList(),
     private val dispatcher: CoroutineContext = Dispatchers.Default,
 ) : TransactionalExecutor {
 
     /**
-     * The [QueryExecutor] the access classes should be given: joins this executor's running
-     * transaction when there is one, and otherwise runs on the pool directly.
+     * The [QueryExecutor] the access classes should get: it joins this executor's running
+     * transaction when there is one, and runs on the pool otherwise.
      */
-    fun ambientQueryExecutor(): QueryExecutor =
-        AmbientQueryExecutor(pool, VertxQueryExecutor(pool, renderer, listeners))
+    public fun ambientQueryExecutor(): QueryExecutor =
+        AmbientQueryExecutor(pool, VertxQueryExecutor(pool, dialect, listeners))
+
+    override suspend fun isInTransaction(): Boolean = currentTransaction(pool) != null
 
     override suspend fun <T> withTransaction(
         options: TransactionOptions,
@@ -91,6 +78,10 @@ class VertxTransactionalExecutor(
     ): T {
         val running = currentTransaction(pool)
         return if (running != null && options.propagation == TransactionPropagation.REQUIRED) {
+            require(!options.readOnly || running.readOnly) {
+                "A read-only transaction was requested inside a running read-write transaction"
+            }
+
             withSavepoint(running, block)
         } else {
             withNewTransaction(options, block)
@@ -101,38 +92,38 @@ class VertxTransactionalExecutor(
         options: TransactionOptions,
         block: suspend (QueryExecutor) -> T,
     ): T {
-        val propagated = currentPropagatedContext()
-        return pool
-            .withConnection { connection ->
-                val executor =
-                    VertxQueryExecutor(
-                        connection,
-                        renderer,
-                        listeners,
-                        transactionId = UUID.randomUUID().toString(),
-                    )
-                val statements = TransactionStatements(executor::executeStatement)
-                val transaction =
-                    ActiveTransaction(owner = pool, executor = executor, statements = statements)
-                val transactions =
-                    propagated[TransactionContextElement]?.plus(transaction)
-                        ?: TransactionContextElement(listOf(transaction))
-                inheritedUni(propagated + transactions, dispatcher) {
-                    statements.execute(options.toBeginSql())
-                    val result =
-                        try {
-                            block(transaction.executor)
-                        } catch (e: Throwable) {
-                            transaction.completed = true
-                            statements.executeSuppressingInto(e, "ROLLBACK")
-                            throw e
-                        }
+        val connection = pool.connection.awaitSuspending()
+        try {
+            val executor =
+                VertxQueryExecutor(
+                    connection,
+                    dialect,
+                    listeners,
+                    transactionId = UUID.randomUUID().toString(),
+                )
+            val transaction =
+                ActiveTransaction(owner = pool, executor = executor, readOnly = options.readOnly)
+            val element =
+                currentCoroutineContext()[TransactionContextElement]?.plus(transaction)
+                    ?: TransactionContextElement(listOf(transaction))
+            return withContext(dispatcher + element) {
+                val result =
+                    try {
+                        executor.executeStatement(dialect.transactions.begin(options))
+                        block(executor)
+                    } catch (e: Throwable) {
+                        transaction.completed = true
+                        executor.executeSuppressingInto(e, dialect.transactions.rollback())
+                        throw e
+                    }
 
-                    transaction.completed = true
-                    statements.execute("COMMIT")
-                    result
-                }
-            }.awaitSuspending()
+                transaction.completed = true
+                executor.executeStatement(dialect.transactions.commit())
+                result
+            }
+        } finally {
+            withContext(NonCancellable) { connection.close().awaitSuspending() }
+        }
     }
 
     private suspend fun <T> withSavepoint(
@@ -140,43 +131,32 @@ class VertxTransactionalExecutor(
         block: suspend (QueryExecutor) -> T,
     ): T {
         val savepoint = transaction.nextSavepointName()
-        transaction.statements.execute("SAVEPOINT $savepoint")
+        val sql = dialect.transactions
+        transaction.executor.executeStatement(sql.savepoint(savepoint))
         val result =
             try {
                 block(transaction.executor)
             } catch (e: Throwable) {
-                transaction.statements.executeSuppressingInto(e, "ROLLBACK TO SAVEPOINT $savepoint")
+                transaction.executor.executeSuppressingInto(e, sql.rollbackToSavepoint(savepoint))
                 throw e
             }
 
-        transaction.statements.execute("RELEASE SAVEPOINT $savepoint")
+        transaction.executor.executeStatement(sql.releaseSavepoint(savepoint))
         return result
     }
 }
 
 /**
- * Runs [sql] even when the calling coroutine is being cancelled - it undoes work after [failure] -
+ * Runs [sql] even while the calling coroutine is cancelled - it undoes the work [failure] left -
  * and attaches its own failure to [failure] instead of hiding the original error.
  */
-private suspend fun TransactionStatements.executeSuppressingInto(
+private suspend fun VertxQueryExecutor.executeSuppressingInto(
     failure: Throwable,
     sql: String,
 ) {
     try {
-        withContext(NonCancellable) { execute(sql) }
+        withContext(NonCancellable) { executeStatement(sql) }
     } catch (undoFailure: Throwable) {
         failure.addSuppressed(undoFailure)
     }
-}
-
-/** `BEGIN`, plus the transaction modes for [TransactionOptions] that deviate from the defaults. */
-internal fun TransactionOptions.toBeginSql(): String {
-    val modes =
-        buildList {
-            isolation?.let { add("ISOLATION LEVEL ${it.name.replace('_', ' ')}") }
-
-            if (readOnly) add("READ ONLY")
-        }
-
-    return if (modes.isEmpty()) "BEGIN" else modes.joinToString(", ", prefix = "BEGIN ")
 }

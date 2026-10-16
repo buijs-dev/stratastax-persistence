@@ -16,162 +16,89 @@
  */
 package dev.buijs.stratastax.persistence.test.api
 
-import dev.buijs.stratastax.persistence.reactive.api.VertxQueryExecutor
+import dev.buijs.stratastax.persistence.reactive.api.PostgresDialect
 import kotlinx.coroutines.runBlocking
-import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.jooq.SQLDialect
-import org.jooq.impl.DSL
-import org.junit.jupiter.api.AfterAll
+import org.assertj.core.api.Assertions.assertThat
+import org.jooq.JSONB
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
-private object GAME : org.jooq.impl.TableImpl<org.jooq.Record>(DSL.name("game")) {
-
-    val ID: org.jooq.TableField<org.jooq.Record, Long> =
-        createField(DSL.name("id"), org.jooq.impl.SQLDataType.BIGINT)
-    val NAME: org.jooq.TableField<org.jooq.Record, String> =
-        createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR)
-    val CATEGORY: org.jooq.TableField<org.jooq.Record, String> =
-        createField(DSL.name("category"), org.jooq.impl.SQLDataType.VARCHAR)
-}
-
 /**
- * Exercises the plan-based assertions ([TestExecution.assertNoSequentialScans],
- * [TestExecution.assertUsesIndex], [TestExecution.assertMaxRowsRead],
- * [TestExecution.assertMaxBufferReads]) against a real Postgres, backed by
- * [PostgresQueryPlanAnalyzer] running actual `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` queries.
- *
- * **Requires Docker** - [setUp] skips (not fails) without it.
+ * [PostgresQueryPlanAnalyzer] against a real Postgres: plan parsing, bind values of every kind,
+ * and that analyzing a write leaves no trace.
  */
 internal class PostgresQueryPlanAnalyzerIntegrationTest {
 
     companion object {
 
-        private val database = PostgresTestDatabase()
-        private lateinit var pool: io.vertx.mutiny.sqlclient.Pool
-        private val dsl = DSL.using(SQLDialect.POSTGRES)
-
         @BeforeAll
         @JvmStatic
-        fun setUp() {
-            database.start()
+        fun start() = TestDatabase.start()
+    }
 
-            database.executeDdl(
-                """
-                CREATE TABLE game (
-                    id BIGSERIAL PRIMARY KEY,
-                    name VARCHAR(255) NOT NULL,
-                    category VARCHAR(255) NOT NULL
-                )
-                """.trimIndent(),
-                "CREATE INDEX idx_game_name ON game(name)",
+    private val dsl = PostgresDialect.dsl()
+    private val analyzer = TestDatabase.postgres.planAnalyzer()
+
+    @BeforeEach
+    fun seed() = TestDatabase.seed(10)
+
+    private fun analyze(query: org.jooq.Query) =
+        runBlocking { analyzer.analyze(PostgresDialect.renderer.render(query)) }
+
+    @Test
+    fun `parses the plan tree of a query`() {
+        // given
+        val query = dsl.selectFrom(PLAYSET).where(PLAYSET.ID.eq(1L))
+
+        // when
+        val plan = analyze(query)
+
+        // then
+        assertThat(plan.root.relationName).isEqualTo("playset")
+        assertThat(plan.root.actualRows).isEqualTo(1L)
+        assertThat(plan.root.renderTree()).contains("relation=playset")
+        assertThat(plan.planningTime.isNegative()).isFalse()
+    }
+
+    @Test
+    fun `analyzing an insert, update or delete leaves the data untouched`() {
+        // given
+        val writes =
+            listOf(
+                dsl.insertInto(PLAYSET).set(PLAYSET.NAME, "analyzed"),
+                dsl.update(PLAYSET).set(PLAYSET.NAME, "analyzed"),
+                dsl.deleteFrom(PLAYSET),
             )
 
-            val container = database.container
-            val connectOptions =
-                io.vertx.pgclient
-                    .PgConnectOptions()
-                    .setHost(container.host)
-                    .setPort(container.firstMappedPort)
-                    .setDatabase(container.databaseName)
-                    .setUser(container.username)
-                    .setPassword(container.password)
+        // when
+        writes.forEach(::analyze)
 
-            pool =
-                io.vertx.mutiny.pgclient.PgBuilder
-                    .pool()
-                    .connectingTo(connectOptions)
-                    .with(io.vertx.sqlclient.PoolOptions())
-                    .build()
-
-            // Enough rows that the planner actually prefers the index over a
-            // sequential scan for an equality lookup - too few rows and
-            // Postgres reasonably picks a seq scan regardless of the index.
-            val insert = dsl.insertInto(GAME, GAME.NAME, GAME.CATEGORY)
-            (1..2000).forEach { i -> insert.values("Game $i", if (i % 2 == 0) "even" else "odd") }
-
-            runBlocking { VertxQueryExecutor(pool).executeUpdate(insert) }
-        }
-
-        @AfterAll
-        @JvmStatic
-        fun tearDown() {
-            if (::pool.isInitialized) pool.close().await().indefinitely()
-            database.stop()
-        }
-    }
-
-    private val recorder = QueryExecutionRecorder()
-    private val executor = VertxQueryExecutor(pool, listeners = listOf(recorder))
-    private val analyzer =
-        PostgresQueryPlanAnalyzer(
-            jdbcUrl = database.container.jdbcUrl,
-            username = database.container.username,
-            password = database.container.password,
-        )
-    private val harness = PersistenceTestHarness(recorder, analyzer)
-
-    @Test
-    fun `a primary key lookup uses the primary key index and touches one row`() {
-        runBlocking {
-            val result =
-                harness.execute {
-                    executor.executeAndGetFirst(
-                        dsl.select(GAME.ID).from(GAME).where(GAME.ID.eq(1L)),
-                    )
-                }
-
-            result
-                .assertSuccessful()
-                .assertNoSequentialScans()
-                .assertUsesIndex("game_pkey")
-                .assertMaxRowsRead(1)
-        }
+        // then
+        assertThat(TestDatabase.postgres.queryForLong("SELECT count(*) FROM playset")).isEqualTo(10)
+        assertThat(
+            TestDatabase.postgres.queryForLong(
+                "SELECT count(*) FROM playset WHERE name = 'analyzed'",
+            ),
+        ).isZero()
     }
 
     @Test
-    fun `an indexed column lookup uses that index`() {
-        runBlocking {
-            val result =
-                harness.execute {
-                    executor.executeAndGetFirst(
-                        dsl.select(GAME.ID).from(GAME).where(GAME.NAME.eq("Game 42")),
-                    )
-                }
+    fun `binds JSON and array parameters`() {
+        // given
+        val json = dsl.selectFrom(PLAYSET).where(PLAYSET.PAYLOAD.eq(JSONB.valueOf("""{"a": 1}""")))
+        val array =
+            dsl.selectFrom(PLAYSET).where(
+                PLAYSET.ID.eq(
+                    org.jooq.impl.DSL
+                        .any(1L, 2L, 3L),
+                ),
+            )
 
-            result.assertSuccessful().assertNoSequentialScans().assertUsesIndex("idx_game_name")
-        }
-    }
+        // when
+        val plans = listOf(analyze(json), analyze(array))
 
-    @Test
-    fun `a lookup on a column with no index is a sequential scan`() {
-        runBlocking {
-            val result =
-                harness.execute {
-                    executor.executeAndGetAll(
-                        dsl.select(GAME.ID).from(GAME).where(GAME.CATEGORY.eq("even")),
-                    )
-                }
-
-            result.assertSuccessful().assertQueryCount(1)
-            assertThatThrownBy { result.assertNoSequentialScans() }
-                .isInstanceOf(AssertionError::class.java)
-        }
-    }
-
-    @Test
-    fun `assertMaxRowsRead fails with a clear message when the budget is exceeded`() {
-        runBlocking {
-            val result =
-                harness.execute {
-                    executor.executeAndGetAll(
-                        dsl.select(GAME.ID).from(GAME).where(GAME.CATEGORY.eq("even")),
-                    )
-                }
-
-            result.assertSuccessful()
-            assertThatThrownBy { result.assertMaxRowsRead(10) }
-                .isInstanceOf(AssertionError::class.java)
-        }
+        // then
+        assertThat(plans.map { it.root.relationName }).containsOnly("playset")
     }
 }

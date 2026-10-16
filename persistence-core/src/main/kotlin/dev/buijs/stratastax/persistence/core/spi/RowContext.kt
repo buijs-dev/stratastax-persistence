@@ -16,78 +16,141 @@
  */
 package dev.buijs.stratastax.persistence.core.spi
 
-import dev.buijs.stratastax.persistence.core.api.MapRowContext
 import java.math.BigDecimal
+import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
 
-interface RowContext {
+/**
+ * Named, typed access to the columns of one row, independent of where the row came from (a
+ * database driver, a JSON object, a CSV record). A [RowMapper] reads a row through this interface.
+ *
+ * Every type has the same family of accessors:
+ * - `xOrNull(name)`: the value, or `null` when the column is NULL;
+ * - `x(name)`: the value, throwing [IllegalStateException] when the column is NULL;
+ * - `xList(name)` / `xSet(name)`: a multi-valued column, empty when NULL.
+ *
+ * Reading a column the row does not have is a programming error and throws
+ * [UnknownColumnException], it never reads as `null`. A value that cannot be read as the requested
+ * type throws [IllegalArgumentException].
+ */
+public interface RowContext {
 
-    fun uuid(name: String): UUID = uuidOrNull(name) ?: error("Column '$name' is null")
+    // UUID
 
-    fun uuidOrNull(name: String): UUID?
+    public fun uuid(name: String): UUID = uuidOrNull(name) ?: nullColumn(name)
 
-    fun uuidList(name: String): List<UUID>
+    public fun uuidOrNull(name: String): UUID?
 
-    fun uuidSet(name: String): Set<UUID> = uuidList(name).toSet()
+    public fun uuidList(name: String): List<UUID>
 
-    fun offsetDateTime(name: String): OffsetDateTime =
-        offsetDateTimeOrNull(name) ?: error("Column '$name' is null")
+    public fun uuidSet(name: String): Set<UUID> = uuidList(name).toSet()
 
-    fun offsetDateTimeOrNull(name: String): OffsetDateTime?
+    // OffsetDateTime
 
-    fun offsetDateTimeList(name: String): List<OffsetDateTime>
+    public fun offsetDateTime(name: String): OffsetDateTime =
+        offsetDateTimeOrNull(name) ?: nullColumn(name)
 
-    fun offsetDateTimeSet(name: String): Set<OffsetDateTime> = offsetDateTimeList(name).toSet()
+    public fun offsetDateTimeOrNull(name: String): OffsetDateTime?
 
-    fun boolean(name: String): Boolean = booleanOrNull(name) ?: error("Column '$name' is null")
+    public fun offsetDateTimeList(name: String): List<OffsetDateTime>
 
-    fun booleanOrNull(name: String): Boolean?
+    public fun offsetDateTimeSet(name: String): Set<OffsetDateTime> =
+        offsetDateTimeList(name).toSet()
 
-    fun booleanList(name: String): List<Boolean>
+    // LocalDate
 
-    fun booleanSet(name: String): Set<Boolean> = booleanList(name).toSet()
+    public fun localDate(name: String): LocalDate = localDateOrNull(name) ?: nullColumn(name)
 
-    fun string(name: String): String = stringOrNull(name) ?: error("Column '$name' is null")
+    public fun localDateOrNull(name: String): LocalDate?
 
-    fun stringOrNull(name: String): String?
+    public fun localDateList(name: String): List<LocalDate>
 
-    fun stringList(name: String): List<String>
+    public fun localDateSet(name: String): Set<LocalDate> = localDateList(name).toSet()
 
-    fun stringSet(name: String): Set<String> = stringList(name).toSet()
+    // Boolean
 
-    fun long(name: String): Long = longOrNull(name) ?: error("Column '$name' is null")
+    public fun boolean(name: String): Boolean = booleanOrNull(name) ?: nullColumn(name)
 
-    fun longOrNull(name: String): Long?
+    public fun booleanOrNull(name: String): Boolean?
 
-    fun longList(name: String): List<Long>
+    public fun booleanList(name: String): List<Boolean>
 
-    fun longSet(name: String): Set<Long> = longList(name).toSet()
+    public fun booleanSet(name: String): Set<Boolean> = booleanList(name).toSet()
 
-    fun integer(name: String): Int = integerOrNull(name) ?: error("Column '$name' is null")
+    // String
 
-    fun integerOrNull(name: String): Int?
+    public fun string(name: String): String = stringOrNull(name) ?: nullColumn(name)
 
-    fun integerList(name: String): List<Int>
+    public fun stringOrNull(name: String): String?
 
-    fun integerSet(name: String): Set<Int> = integerList(name).toSet()
+    public fun stringList(name: String): List<String>
 
-    fun decimal(name: String): BigDecimal = decimalOrNull(name) ?: error("Column '$name' is null")
+    public fun stringSet(name: String): Set<String> = stringList(name).toSet()
 
-    fun decimalOrNull(name: String): BigDecimal?
+    // Long
 
-    fun decimalList(name: String): List<BigDecimal>
+    public fun long(name: String): Long = longOrNull(name) ?: nullColumn(name)
 
-    fun decimalSet(name: String): Set<BigDecimal> = decimalList(name).toSet()
+    public fun longOrNull(name: String): Long?
 
-    fun map(name: String): Map<String, Any?> = mapOrNull(name) ?: error("Column '$name' is null")
+    public fun longList(name: String): List<Long>
 
-    fun mapOrNull(name: String): Map<String, Any?>?
+    public fun longSet(name: String): Set<Long> = longList(name).toSet()
 
-    fun objectList(name: String): List<RowContext> =
-        (objectListOrNull(name) ?: emptyList()).map { MapRowContext(it) }
+    // Int
 
-    fun objectListOrNull(name: String): List<Map<String, Any?>>?
+    public fun integer(name: String): Int = integerOrNull(name) ?: nullColumn(name)
 
-    fun rawOrNull(name: String): Any?
+    public fun integerOrNull(name: String): Int?
+
+    public fun integerList(name: String): List<Int>
+
+    public fun integerSet(name: String): Set<Int> = integerList(name).toSet()
+
+    // BigDecimal
+
+    public fun decimal(name: String): BigDecimal = decimalOrNull(name) ?: nullColumn(name)
+
+    public fun decimalOrNull(name: String): BigDecimal?
+
+    public fun decimalList(name: String): List<BigDecimal>
+
+    public fun decimalSet(name: String): Set<BigDecimal> = decimalList(name).toSet()
+
+    // JSON object, e.g. a free-form jsonb attributes column
+
+    public fun map(name: String): Map<String, Any?> = mapOrNull(name) ?: nullColumn(name)
+
+    /** A JSON object column, decoded to a map of plain JSON values. */
+    public fun mapOrNull(name: String): Map<String, Any?>?
+
+    // Nested rows
+
+    /**
+     * A JSON array of objects (e.g. the aggregated rows of a one-to-many group), one nested
+     * [RowContext] per element, empty when NULL. A nested row is read with the same accessors and
+     * the same rules as this one.
+     */
+    public fun objectList(name: String): List<RowContext> =
+        (objectListOrNull(name) ?: emptyList()).map(::MapRowContext)
+
+    /** The JSON array of objects behind [objectList], decoded to plain maps, `null` when NULL. */
+    public fun objectListOrNull(name: String): List<Map<String, Any?>>?
+
+    /**
+     * Column [name] exactly as the source produced it, without any conversion. For infrastructure
+     * code that handles values of a type unknown at compile time (e.g. a key read back to be bound
+     * into the next statement); a [RowMapper] uses the typed accessors.
+     */
+    public fun rawOrNull(name: String): Any?
 }
+
+/** Thrown when a [RowContext] is asked for column [name], which the row does not have. */
+public class UnknownColumnException(
+    public val name: String,
+    public val available: Collection<String>,
+) : IllegalArgumentException("Column '$name' is not part of this row (columns: $available)")
+
+private fun nullColumn(name: String): Nothing =
+    throw IllegalStateException("Column '$name' is null")

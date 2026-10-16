@@ -18,70 +18,129 @@ package dev.buijs.stratastax.persistence.test.api
 
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.deleteIfExists
+import kotlin.io.path.exists
+import kotlin.io.path.listDirectoryEntries
+import kotlin.io.path.name
+import kotlin.io.path.readText
+import kotlin.io.path.writeText
 
 private const val DEFAULT_SNAPSHOT_ROOT = "src/test/resources/persistence/snapshots"
 
+/** The system property that, set to `true`, (re)records every snapshot instead of comparing. */
+public const val UPDATE_SNAPSHOTS_PROPERTY: String = "persistence.snapshots.update"
+
 /**
- * Records (on first run) or compares (on every run after) each observed query's SQL - and, when a
- * [QueryPlanAnalyzer] is configured, its plan *shape* (see [PlanNode.renderTree]) - against files
- * under [directory]/[name]/query-NNN.{sql,plan.txt}.
+ * Compares the statements of this execution - their SQL and, with a [QueryPlanAnalyzer], their
+ * plan shape (see [PlanNode.renderTree]) - with the snapshot recorded under [directory]/[name], as
+ * `query-001.sql`, `query-001.plan.txt`, ... A snapshot says "tell me when this changes": a changed,
+ * added or removed statement fails with the before and after.
  *
- * Unlike the other assertions here, a snapshot doesn't encode "this must always be true" - it
- * encodes "tell me when this changed," which is exactly what's useful while iterating on the code
- * generator: an unexpected SQL/plan shape change surfaces immediately, with the actual
- * before/after, instead of silently drifting.
+ * - A missing snapshot is recorded on first run - except on CI (environment variable `CI` set to
+ *   `true`), where it fails, so a forgotten snapshot never passes unnoticed.
+ * - With the system property [UPDATE_SNAPSHOTS_PROPERTY] set to `true`, the snapshot is
+ *   re-recorded: changed files are overwritten and files of statements that no longer run are
+ *   deleted.
  *
- * [directory] defaults to a path relative to the test JVM's working directory - Gradle/most IDEs
- * run tests with the consumer module's own root as that directory, so the default resolves under
- * that module's own `src/test/resources` without persistence-testkit needing to know anything about
- * the consumer's layout. Pass an explicit [directory] if that default doesn't fit.
+ * [directory] is relative to the test's working directory, by default the module's own
+ * `src/test/resources/persistence/snapshots`.
  */
-fun <T> TestExecution<T>.assertMatchesSnapshot(
+public fun <T> TestExecution<T>.assertMatchesSnapshot(
     name: String,
     directory: Path = Path.of(DEFAULT_SNAPSHOT_ROOT),
+): TestExecution<T> =
+    matchSnapshot(
+        name = name,
+        directory = directory,
+        update = System.getProperty(UPDATE_SNAPSHOTS_PROPERTY).toBoolean(),
+        onCi = System.getenv("CI").toBoolean(),
+    )
+
+/** [assertMatchesSnapshot] with the update mode and the CI detection passed in. */
+internal fun <T> TestExecution<T>.matchSnapshot(
+    name: String,
+    directory: Path,
+    update: Boolean,
+    onCi: Boolean,
 ): TestExecution<T> {
     val snapshotDir = directory.resolve(name)
-    val mismatches = mutableListOf<String>()
+    val current = snapshotFiles()
+    when {
+        update -> {
+            record(snapshotDir, current)
+        }
+        !snapshotDir.exists() -> {
+            if (onCi) {
+                throw AssertionError(
+                    "No persistence snapshot '$name' recorded under $snapshotDir - " +
+                        "record it locally (or run with -D$UPDATE_SNAPSHOTS_PROPERTY=true) and commit it",
+                )
+            }
 
-    queries.forEachIndexed { index, query ->
-        val label = "query-%03d".format(index + 1)
-        val sql = query.execution.query.sql
-        val planTree = query.plan?.root?.renderTree()
-
-        val sqlFile = snapshotDir.resolve("$label.sql")
-        if (!Files.exists(sqlFile)) {
-            Files.createDirectories(snapshotDir)
-            Files.writeString(sqlFile, sql)
-        } else {
-            val previous = Files.readString(sqlFile)
-            if (previous != sql) {
-                mismatches +=
-                    "Query #${index + 1}\n    SQL changed\n\n" +
-                    "Previous:\n$previous\n\nCurrent:\n$sql"
+            record(snapshotDir, current)
+        }
+        else -> {
+            val mismatches = compare(snapshotDir, current)
+            if (mismatches.isNotEmpty()) {
+                throw AssertionError(
+                    "Persistence snapshot '$name' changed " +
+                        "(re-record with -D$UPDATE_SNAPSHOTS_PROPERTY=true)\n\n" +
+                        mismatches.joinToString("\n\n"),
+                )
             }
         }
-
-        if (planTree != null) {
-            val planFile = snapshotDir.resolve("$label.plan.txt")
-            if (!Files.exists(planFile)) {
-                Files.createDirectories(snapshotDir)
-                Files.writeString(planFile, planTree)
-            } else {
-                val previous = Files.readString(planFile)
-                if (previous != planTree) {
-                    mismatches +=
-                        "Query #${index + 1}\n    Execution plan changed\n\n" +
-                        "Previous:\n$previous\n\nCurrent:\n$planTree"
-                }
-            }
-        }
-    }
-
-    if (mismatches.isNotEmpty()) {
-        throw AssertionError(
-            "Persistence snapshot changed\n\n$name\n\n" + mismatches.joinToString("\n\n"),
-        )
     }
 
     return this
+}
+
+/** The snapshot files of this execution by file name: the SQL of every statement, and its plan. */
+private fun <T> TestExecution<T>.snapshotFiles(): Map<String, String> =
+    queries
+        .flatMapIndexed { index, query ->
+            val label = "query-%03d".format(index + 1)
+            listOfNotNull(
+                "$label.sql" to query.execution.query.sql,
+                query.plan?.let { "$label.plan.txt" to it.root.renderTree() },
+            )
+        }.toMap()
+
+private fun record(
+    directory: Path,
+    files: Map<String, String>,
+) {
+    Files.createDirectories(directory)
+    directory.listDirectoryEntries().filter { it.name !in files }.forEach { it.deleteIfExists() }
+
+    files.forEach { (fileName, content) -> directory.resolve(fileName).writeText(content) }
+}
+
+private fun compare(
+    directory: Path,
+    files: Map<String, String>,
+): List<String> {
+    val recorded = directory.listDirectoryEntries().associate { it.name to it.readText() }
+
+    val changed =
+        files.mapNotNull { (fileName, content) ->
+            val previous = recorded[fileName]
+            when {
+                previous == null -> {
+                    "$fileName is new:\n$content"
+                }
+                previous != content -> {
+                    "$fileName changed\n\nPrevious:\n$previous\n\nCurrent:\n$content"
+                }
+                else -> {
+                    null
+                }
+            }
+        }
+
+    val removed =
+        (recorded.keys - files.keys).sorted().map {
+            "$it no longer runs:\n${recorded.getValue(it)}"
+        }
+
+    return changed + removed
 }

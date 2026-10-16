@@ -16,15 +16,19 @@
  */
 package dev.buijs.stratastax.persistence.reactive.api
 
-import dev.buijs.stratastax.persistence.core.api.QueryExecution
-import dev.buijs.stratastax.persistence.core.api.QueryOperation
-import dev.buijs.stratastax.persistence.core.api.RenderedQuery
+import dev.buijs.stratastax.persistence.core.spi.QueryExecution
 import dev.buijs.stratastax.persistence.core.spi.QueryExecutionListener
+import dev.buijs.stratastax.persistence.core.spi.QueryOperation
+import dev.buijs.stratastax.persistence.core.spi.RenderedQuery
 import dev.buijs.stratastax.persistence.core.spi.RowContext
-import dev.buijs.stratastax.persistence.reactive.app.ColumnIndex
-import dev.buijs.stratastax.persistence.reactive.app.PostgresSqlRenderer
-import dev.buijs.stratastax.persistence.reactive.app.VertxRowContext
+import dev.buijs.stratastax.persistence.reactive.internal.ColumnIndex
+import dev.buijs.stratastax.persistence.reactive.internal.VertxRowContext
+import dev.buijs.stratastax.persistence.reactive.spi.PersistenceDialect
+import dev.buijs.stratastax.persistence.reactive.spi.QueryExecutor
+import dev.buijs.stratastax.persistence.reactive.spi.SqlRenderer
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.smallrye.mutiny.coroutines.awaitSuspending
+import io.vertx.core.json.Json
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.mutiny.sqlclient.Row
@@ -36,37 +40,43 @@ import kotlinx.coroutines.withContext
 import org.jooq.JSON
 import org.jooq.JSONB
 import org.jooq.Query
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 import kotlin.time.TimeSource
 
+private val log = KotlinLogging.logger {}
+
 /**
- * [QueryExecutor] implementation over a Vert.x Mutiny [SqlClient] - jOOQ here only builds the
- * [Query], [renderer] turns it into the SQL/bind values an actual driver runs, and this class is
- * what actually runs it reactively, hands rows back as [RowContext] (via [VertxRowContext]), and
- * reports each execution to every [listeners] entry.
+ * A [QueryExecutor] over a Vert.x Mutiny [SqlClient] (a pool, or one connection): renders each
+ * query with [renderer], runs it, hands its rows back as [RowContext]s and reports it to every one
+ * of [listeners] - also a failed statement and the transaction-control statements of a
+ * transaction, tagged with [transactionId] when this executor is bound to one.
  *
- * Every statement is reported - also a failed one (with its error) and the transaction-control
- * statements [executeStatement] runs - tagged with [transactionId] when this executor is bound to
- * one transaction's connection, so a listener sees a transaction's complete statement sequence.
+ * A listener that throws is logged and otherwise ignored: it never changes the outcome of a
+ * statement or a transaction.
+ *
+ * Bound to a transaction (a [transactionId]), the executor runs one query at a time and rejects a
+ * query started while another is still running: a transaction must not be used from several
+ * coroutines concurrently.
  */
-class VertxQueryExecutor(
+public class VertxQueryExecutor(
     private val client: SqlClient,
-    private val renderer: SqlRenderer = PostgresSqlRenderer(),
+    private val dialect: PersistenceDialect = PostgresDialect,
     private val listeners: List<QueryExecutionListener> = emptyList(),
     private val transactionId: String? = null,
+    private val renderer: SqlRenderer = dialect.renderer,
 ) : QueryExecutor {
+
+    private val running = AtomicInteger()
 
     override suspend fun executeAndGetAll(query: Query): List<RowContext> {
         val rows = execute(query)
-        // One column index for the whole result set: names resolve once, not per row.
-        val index = ColumnIndex(rows.columnsNames())
+        val index = ColumnIndex(rows.columnsNames(), dialect)
         return buildList { rows.forEach { add(VertxRowContext(it, index)) } }
     }
 
-    override suspend fun executeAndGetFirst(query: Query): RowContext? {
-        val iterator = execute(query).iterator()
-        return if (iterator.hasNext()) VertxRowContext(iterator.next()) else null
-    }
+    override suspend fun executeAndGetFirst(query: Query): RowContext? = execute(query).firstRow()
 
     override suspend fun exists(query: Query): Boolean = execute(query).iterator().hasNext()
 
@@ -77,27 +87,44 @@ class VertxQueryExecutor(
 
     override suspend fun executeUpdate(query: Query): Int = execute(query).rowCount()
 
-    override suspend fun executeReturning(query: Query): RowContext? {
-        val iterator = execute(query).iterator()
-        return if (iterator.hasNext()) VertxRowContext(iterator.next()) else null
+    override suspend fun executeReturning(query: Query): RowContext? = execute(query).firstRow()
+
+    /** Runs a parameterless statement such as `BEGIN` or `SAVEPOINT x`, reported like any query. */
+    internal suspend fun executeStatement(sql: String) {
+        observed(RenderedQuery(sql, emptyList())) { client.query(sql).execute().awaitSuspending() }
     }
 
-    private suspend fun execute(query: Query): RowSet<Row> {
-        val rendered = renderer.render(query)
-        return observed(rendered) {
-            client
-                .preparedQuery(rendered.sql)
-                .execute(Tuple.from(rendered.parameters.map(::vertxBindValue)))
-                .awaitSuspending()
+    private fun RowSet<Row>.firstRow(): RowContext? {
+        val iterator = iterator()
+        return if (iterator.hasNext()) {
+            val row = iterator.next()
+            VertxRowContext(row, ColumnIndex.of(row, dialect))
+        } else {
+            null
         }
     }
 
-    /**
-     * Runs a parameterless, non-jOOQ statement - `BEGIN`, `SAVEPOINT ...`, `COMMIT`, ... - on this
-     * executor's connection, reported to [listeners] exactly like any query.
-     */
-    internal suspend fun executeStatement(sql: String) {
-        observed(RenderedQuery(sql, emptyList())) { client.query(sql).execute().awaitSuspending() }
+    private suspend fun execute(query: Query): RowSet<Row> {
+        val exclusive = transactionId != null
+        if (exclusive && running.getAndIncrement() > 0) {
+            running.decrementAndGet()
+            throw IllegalStateException(
+                "Transaction $transactionId is used by several coroutines at once - " +
+                    "run the statements of one transaction one after the other",
+            )
+        }
+
+        try {
+            val rendered = renderer.render(query)
+            return observed(rendered) {
+                client
+                    .preparedQuery(rendered.sql)
+                    .execute(Tuple.from(rendered.parameters.map(::bindValue)))
+                    .awaitSuspending()
+            }
+        } finally {
+            if (exclusive) running.decrementAndGet()
+        }
     }
 
     private suspend fun observed(
@@ -109,10 +136,10 @@ class VertxQueryExecutor(
             try {
                 run()
             } catch (e: Throwable) {
-                // Report even when cancelled: the statement may well have reached the database.
-                withContext(NonCancellable) {
-                    report(rendered, started.elapsedNow(), rowCount = null, error = e)
-                }
+                // Reported even when cancelled: the statement may well have reached the database.
+                withContext(
+                    NonCancellable,
+                ) { report(rendered, started.elapsedNow(), rowCount = null, error = e) }
 
                 throw e
             }
@@ -127,6 +154,7 @@ class VertxQueryExecutor(
         rowCount: Int?,
         error: Throwable?,
     ) {
+        if (listeners.isEmpty()) return
         val execution =
             QueryExecution(
                 query = rendered,
@@ -136,35 +164,35 @@ class VertxQueryExecutor(
                 transactionId = transactionId,
                 error = error,
             )
-        listeners.forEach { it.executed(execution) }
+        listeners.forEach { listener ->
+            try {
+                listener.executed(execution)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.warn(e) { "QueryExecutionListener ${listener.javaClass.name} failed; ignored" }
+            }
+        }
     }
 
     /**
-     * jOOQ's own `JSON`/`JSONB` wrapper types (produced whenever a bind value targets a
-     * `json`/`jsonb` column - see e.g.
-     * `dev.buijs.stratastax.codegen.features.persistence.binding.CreateUpdateBindingUnwrapResolver`'s
-     * generated `org.jooq.JSONB.valueOf(...)` calls) aren't a type Vert.x's own PG encoder
-     * recognizes at all. The raw JSON text alone (a plain [String]) isn't enough either - Postgres
-     * accepts it fine (an implicit text-to-json/jsonb cast), but Vert.x's *own* client-side type
-     * tracking then treats that parameter/column as plain text for the rest of the round trip, so
-     * decoding a returned row's own json/jsonb column back via `Row.getJsonObject` throws a
-     * `ClassCastException` (`String` can't cast to `JsonObject`) - confirmed by a real Postgres
-     * integration test. Vert.x's own [JsonObject]/[JsonArray] are what its encoder/decoder natively
-     * agree on for a json/jsonb column in both directions - matches how the *read* side already
-     * decodes one via `Row.getJsonObject`/ `.getJsonArray`
-     * (`VertxRowContext.mapOrNull`/`.objectListOrNull`). Every other bind value passes through
-     * unchanged.
+     * jOOQ's [JSON]/[JSONB] bind values become the Vert.x JSON value the Postgres client encodes for
+     * a json/jsonb parameter: a [JsonObject], a [JsonArray], a scalar, or [Tuple.JSON_NULL].
      */
-    private fun vertxBindValue(value: Any?): Any? =
+    private fun bindValue(value: Any?): Any? =
         when (value) {
             is JSON -> decodeJson(value.data())
             is JSONB -> decodeJson(value.data())
             else -> value
         }
 
-    private fun decodeJson(raw: String): Any =
-        when (raw.trimStart().firstOrNull()) {
-            '[' -> JsonArray(raw)
-            else -> JsonObject(raw)
+    private fun decodeJson(raw: String): Any {
+        val text = raw.trim()
+        return when {
+            text.startsWith("{") -> JsonObject(text)
+            text.startsWith("[") -> JsonArray(text)
+            text == "null" -> Tuple.JSON_NULL
+            else -> Json.decodeValue(text)
         }
+    }
 }

@@ -23,105 +23,110 @@ import org.testcontainers.utility.DockerImageName
 import java.sql.DriverManager
 
 /**
- * A real Postgres, via Testcontainers - the same "test the actual optimizer against the actual
- * schema" instance a [PersistenceTestHarness] scenario runs against, generalized out of the
- * container/DDL boilerplate `persistence-vertx`'s own `VertxQueryExecutorIntegrationTest` already
- * established.
+ * A real Postgres in a Testcontainers container, to run the code under test - and the planner -
+ * against the actual schema.
  *
- * [start] calls [Assumptions.assumeTrue] before touching Testcontainers at all, so a caller
- * (typically a `@BeforeAll`) is reported as *skipped*, not *failed*, in an environment without
- * Docker.
+ * [start] first checks that Docker is available and otherwise aborts through a JUnit assumption, so
+ * a test (typically its `@BeforeAll`) is reported as skipped rather than failed without Docker.
  */
-class PostgresTestDatabase(
+public class PostgresTestDatabase(
     private val image: String = "postgres:16-alpine",
 ) {
 
     private var containerRef: PostgreSQLContainer<*>? = null
 
-    val container: PostgreSQLContainer<*>
+    /** The running container. */
+    public val container: PostgreSQLContainer<*>
         get() = containerRef ?: error("PostgresTestDatabase.start() was not called")
 
-    fun start() {
+    /** Starts the container, or skips the calling test when Docker is not available. */
+    public fun start() {
         val dockerAvailable =
             runCatching { DockerClientFactory.instance().isDockerAvailable }.getOrDefault(false)
         Assumptions.assumeTrue(dockerAvailable) { "Docker is not available - skipping test" }
 
-        containerRef = PostgreSQLContainer(DockerImageName.parse(image)).also { it.start() }
+        if (containerRef == null) {
+            containerRef =
+                PostgreSQLContainer(DockerImageName.parse(image)).also { it.start() }
+        }
     }
 
-    fun stop() {
+    /** Stops the container. */
+    public fun stop() {
         containerRef?.stop()
+        containerRef = null
     }
 
-    val jdbcUrl: String
+    public val jdbcUrl: String
         get() = container.jdbcUrl
 
     /** The `postgresql://host:port/database` URL a Vert.x reactive client connects with. */
-    val reactiveUrl: String
-        get() =
-            "postgresql://${container.host}:${container.firstMappedPort}/${container.databaseName}"
+    public val reactiveUrl: String
+        get() = "postgresql://$host:$port/$databaseName"
 
-    val host: String
+    public val host: String
         get() = container.host
 
-    val port: Int
+    public val port: Int
         get() = container.firstMappedPort
 
-    val databaseName: String
+    public val databaseName: String
         get() = container.databaseName
 
-    val username: String
+    public val username: String
         get() = container.username
 
-    val password: String
+    public val password: String
         get() = container.password
 
-    /** Runs each of [statements] as a plain JDBC DDL statement, e.g. `CREATE TABLE ...`. */
-    fun executeDdl(vararg statements: String) {
-        DriverManager
-            .getConnection(container.jdbcUrl, container.username, container.password)
-            .use { connection ->
-                connection.createStatement().use { statement ->
-                    statements.forEach(statement::execute)
-                }
-            }
+    /** A [PostgresQueryPlanAnalyzer] for this database. */
+    public fun planAnalyzer(): PostgresQueryPlanAnalyzer =
+        PostgresQueryPlanAnalyzer(jdbcUrl, username, password)
+
+    /** Runs each of [statements] over JDBC, e.g. `CREATE TABLE ...`. */
+    public fun executeDdl(vararg statements: String) {
+        DriverManager.getConnection(jdbcUrl, username, password).use { connection ->
+            connection.createStatement().use { statement -> statements.forEach(statement::execute) }
+        }
     }
 
     /**
-     * Runs [sql] directly on the database (its own JDBC connection, outside anything the code under
-     * test does) and returns every row as column name to value - for verifying what was actually
-     * committed, e.g. that no orphan rows were left behind.
+     * Runs [sql] on its own JDBC connection, outside anything the code under test does, and returns
+     * every row as column name to value - to verify what was actually committed.
      */
-    fun query(sql: String): List<Map<String, Any?>> =
-        DriverManager
-            .getConnection(container.jdbcUrl, container.username, container.password)
-            .use { connection ->
-                connection.createStatement().use { statement ->
-                    statement.executeQuery(sql).use { resultSet ->
-                        val columns =
-                            (1..resultSet.metaData.columnCount).map {
-                                resultSet.metaData.getColumnLabel(it)
-                            }
+    public fun query(sql: String): List<Map<String, Any?>> =
+        DriverManager.getConnection(jdbcUrl, username, password).use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery(sql).use { resultSet ->
+                    val columns =
+                        (1..resultSet.metaData.columnCount).map {
+                            resultSet.metaData
+                                .getColumnLabel(
+                                    it,
+                                )
+                        }
 
-                        buildList {
-                            while (resultSet.next()) {
-                                add(columns.associateWith { resultSet.getObject(it) })
-                            }
+                    buildList {
+                        while (resultSet.next()) {
+                            add(
+                                columns.associateWith { resultSet.getObject(it) },
+                            )
                         }
                     }
                 }
             }
+        }
 
     /** [query] for a single numeric value, e.g. `select count(*) from ...`. */
-    fun queryForLong(sql: String): Long = (query(sql).single().values.single() as Number).toLong()
+    public fun queryForLong(sql: String): Long =
+        (query(sql).single().values.single() as Number).toLong()
 
     /**
-     * Makes Postgres itself log every statement it receives, prefixed with the backend process id
-     * and transaction id (`pid=123 txid=456 ...`) - the server-side view of which statements ran on
-     * which connection and in which transaction, independent of any client-side listener. Read the
-     * output with [logs].
+     * Makes Postgres log every statement it receives, prefixed with the backend process id and the
+     * transaction id (`pid=123 txid=456 ...`) - the server's view of which statements ran on which
+     * connection and in which transaction. Read it with [logs].
      */
-    fun enableStatementLogging() {
+    public fun enableStatementLogging() {
         executeDdl(
             "ALTER SYSTEM SET log_statement = 'all'",
             "ALTER SYSTEM SET log_line_prefix = 'pid=%p txid=%x '",
@@ -129,6 +134,6 @@ class PostgresTestDatabase(
         )
     }
 
-    /** Everything the Postgres server logged so far (see [enableStatementLogging]). */
-    fun logs(): String = container.logs
+    /** Everything the server logged so far, see [enableStatementLogging]. */
+    public fun logs(): String = container.logs
 }

@@ -17,51 +17,55 @@
 package dev.buijs.stratastax.persistence.core.api
 
 /**
- * Thrown when [id] itself has no matching row at all. This is distinct from
- * [OptimisticLockException] (the row exists but the caller's `expectedVersion` is stale). For an
- * entity with no version column configured, this is the *only* possible reason an update/delete
- * ever affects zero rows.
+ * Thrown when an update or delete targets an [id] that has no row in [entityName].
+ *
+ * Distinct from [OptimisticLockException], where the row exists but its version moved on.
  */
-class EntityNotFoundException(
-    entityName: String,
-    id: Any,
+public class EntityNotFoundException(
+    public val entityName: String,
+    public val id: Any,
 ) : IllegalArgumentException("No row in '$entityName' where id = $id")
 
 /**
- * Thrown when an update/delete command fails because the caller's `expectedVersion` is stale (the
- * row exists but the caller's `expectedVersion` is stale).
+ * Thrown when an update or delete is rejected because [expectedVersion] no longer matches the
+ * version of row [id] in [entityName]: someone else modified (or deleted) it in the meantime.
  */
-class OptimisticLockException(
-    entityName: String,
-    id: Any,
-    expectedVersion: Any?,
+public class OptimisticLockException(
+    public val entityName: String,
+    public val id: Any,
+    public val expectedVersion: Any?,
 ) : IllegalStateException(
-        "$entityName($id): update/delete rejected. " +
-            "Expected version $expectedVersion no longer matches " +
-            "the current row (it was modified or deleted by someone else)",
+        "$entityName($id): update/delete rejected. Expected version $expectedVersion no longer " +
+            "matches the current row (it was modified or deleted by someone else)",
     )
 
 /**
- * Thrown when a create/update command references another entity by a public id (e.g., a `gameId`)
- * that doesn't actually exist.
+ * Thrown when a create or update command references another entity (e.g. by its public id) that
+ * does not exist: there is no row in [tableName] where [columnName] equals [value].
  */
-class ReferencedEntityNotFoundException(
-    tableName: String,
-    columnName: String,
-    value: Any?,
+public class ReferencedEntityNotFoundException(
+    public val tableName: String,
+    public val columnName: String,
+    public val value: Any?,
 ) : IllegalArgumentException(
         "No row in '$tableName' where '$columnName' = $value, referenced entity not found",
     )
 
 /**
- * Thrown by [dev.buijs.stratastax.persistence.core.spi.orThrow] when a batch call had at least one
- * failed input. This lets a caller turn a best-effort batch into an all-or-nothing one by throwing it
- * inside [UnitOfWork.transaction], which then rolls back the inputs that did succeed. [failures]
- * holds every failed input's own exception, in input order; the first one is also the [cause].
+ * Thrown by [orThrow] when at least one input of a batch call failed.
+ *
+ * [failures] holds every failed input's exception, in input order. The first one is the [cause];
+ * the others are attached as [suppressed][Throwable.getSuppressed] exceptions so they show up in a
+ * stack trace too.
  */
-class BatchFailedException(
-    val failures: List<Throwable>,
+public class BatchFailedException(
+    public val failures: List<Throwable>,
 ) : RuntimeException(
         "${failures.size} batch item(s) failed, first: ${failures.firstOrNull()?.message}",
         failures.firstOrNull(),
-    )
+    ) {
+
+    init {
+        failures.drop(1).forEach(::addSuppressed)
+    }
+}

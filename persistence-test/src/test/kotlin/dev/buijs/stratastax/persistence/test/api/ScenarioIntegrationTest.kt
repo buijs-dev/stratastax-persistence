@@ -16,160 +16,109 @@
  */
 package dev.buijs.stratastax.persistence.test.api
 
+import dev.buijs.stratastax.persistence.reactive.api.PostgresDialect
 import dev.buijs.stratastax.persistence.reactive.api.VertxQueryExecutor
 import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.catchThrowableOfType
-import org.jooq.SQLDialect
-import org.jooq.impl.DSL
-import org.junit.jupiter.api.AfterAll
+import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.seconds
 
-// Named like the jOOQ-generated table it stands in for.
-@Suppress("ktlint:standard:class-naming")
-private object SCENARIO_PLAYSET : org.jooq.impl.TableImpl<org.jooq.Record>(DSL.name("playset")) {
-
-    val ID: org.jooq.TableField<org.jooq.Record, Long> =
-        createField(DSL.name("id"), org.jooq.impl.SQLDataType.BIGINT)
-    val NAME: org.jooq.TableField<org.jooq.Record, String> =
-        createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR)
-}
-
-/**
- * Exercises [PersistenceTestHarness.scenario] - the consumer-facing DSL combining query-count,
- * SQL-semantic, and plan-based expectations into one report - against a real Postgres.
- *
- * **Requires Docker.**
- */
+/** The [scenario] DSL: every check runs, and a failing scenario throws its full report. */
 internal class ScenarioIntegrationTest {
 
     companion object {
 
-        private val database = PostgresTestDatabase()
-        private lateinit var pool: io.vertx.mutiny.sqlclient.Pool
-        private val dsl = DSL.using(SQLDialect.POSTGRES)
-
         @BeforeAll
         @JvmStatic
-        fun setUp() {
-            database.start()
-            database.executeDdl(
-                """
-                CREATE TABLE playset (
-                    id BIGSERIAL PRIMARY KEY,
-                    name VARCHAR(255) NOT NULL
-                )
-                """.trimIndent(),
-            )
-
-            val container = database.container
-            val connectOptions =
-                io.vertx.pgclient
-                    .PgConnectOptions()
-                    .setHost(container.host)
-                    .setPort(container.firstMappedPort)
-                    .setDatabase(container.databaseName)
-                    .setUser(container.username)
-                    .setPassword(container.password)
-
-            pool =
-                io.vertx.mutiny.pgclient.PgBuilder
-                    .pool()
-                    .connectingTo(connectOptions)
-                    .with(io.vertx.sqlclient.PoolOptions())
-                    .build()
-        }
-
-        @AfterAll
-        @JvmStatic
-        fun tearDown() {
-            if (::pool.isInitialized) pool.close().await().indefinitely()
-            database.stop()
-        }
+        fun start() = TestDatabase.start()
     }
 
+    private val dsl = PostgresDialect.dsl()
     private val recorder = QueryExecutionRecorder()
-    private val executor = VertxQueryExecutor(pool, listeners = listOf(recorder))
-    private val analyzer =
-        PostgresQueryPlanAnalyzer(
-            jdbcUrl = database.container.jdbcUrl,
-            username = database.container.username,
-            password = database.container.password,
-        )
-    private val harness = PersistenceTestHarness(recorder, analyzer)
+    private val executor = VertxQueryExecutor(TestDatabase.pool, listeners = listOf(recorder))
+    private val harness = PersistenceTestHarness(recorder, TestDatabase.postgres.planAnalyzer())
+
+    @BeforeEach
+    fun seed() = TestDatabase.seed(20_000)
 
     @Test
-    fun `a passing scenario reports every expectation as satisfied`() {
-        runBlocking {
-            val id =
-                executor
-                    .executeReturning(
-                        dsl
-                            .insertInto(SCENARIO_PLAYSET)
-                            .set(mapOf(SCENARIO_PLAYSET.NAME to "Catan"))
-                            .returning(),
-                    )!!
-                    .long("id")
+    fun `a passing scenario returns its report`() =
+        runBlocking<Unit> {
+            // given
+            val lookup = dsl.selectFrom(PLAYSET).where(PLAYSET.NAME.eq("playset 7"))
 
+            // when
             val report =
-                harness.scenario("find playset by id") {
-                    execute {
-                        executor.executeAndGetFirst(
-                            dsl
-                                .select(SCENARIO_PLAYSET.ID, SCENARIO_PLAYSET.NAME)
-                                .from(SCENARIO_PLAYSET)
-                                .where(SCENARIO_PLAYSET.ID.eq(id)),
-                        )
-                    }
+                harness.scenario("find by name") {
+                    execute { executor.executeAndGetAll(lookup) }
 
                     expect {
                         queries = 1
-                        sql {
-                            usesTable("playset")
-                            usesPredicate("id")
-                        }
+                        sql { usesPredicate("name") }
 
                         plan {
                             noSequentialScans()
-                            usesIndex("playset_pkey")
+                            usesIndex("playset_name_idx")
                             maxRowsRead = 1
+                            maxBufferReads = 100
                         }
 
                         performance { maxExecutionTime = 5.seconds }
                     }
                 }
 
+            // then
             assertThat(report.passed).isTrue()
-            assertThat(report.outcomes.isNotEmpty()).isTrue()
-            assertThat(report.render().contains("✓ find playset by id")).isTrue()
+            assertThat(
+                report.render(),
+            ).startsWith("✓ find by name").contains("PLAN\n  ✓ no sequential scans")
         }
-    }
 
     @Test
-    fun `a failing scenario reports every broken expectation, not just the first`() {
-        runBlocking {
-            val error =
-                catchThrowableOfType(AssertionError::class.java) {
-                    runBlocking {
-                        harness.scenario("broken expectations") {
-                            execute {
-                                executor.executeAndGetAll(
-                                    dsl.select(SCENARIO_PLAYSET.ID).from(SCENARIO_PLAYSET),
-                                )
-                            }
+    fun `a failing scenario runs every check and throws the whole report`() {
+        // given
+        val everything = dsl.selectFrom(PLAYSET)
 
-                            expect {
-                                queries = 99
-                                sql { usesTable("does_not_exist") }
-                            }
+        // when
+        val thrown =
+            catchThrowable {
+                runBlocking {
+                    harness.scenario("read everything") {
+                        execute { executor.executeAndGetAll(everything) }
+
+                        expect {
+                            queries = 2
+                            sql { usesTable("playset") }
+
+                            plan { noSequentialScans() }
                         }
                     }
                 }
+            }
 
-            assertThat(error.message!!.contains("99 queries executed")).isTrue()
-            assertThat(error.message!!.contains("table does_not_exist")).isTrue()
-        }
+        // then
+        assertThat(thrown)
+            .isInstanceOf(AssertionError::class.java)
+            .hasMessageContaining("✗ read everything")
+            .hasMessageContaining("✗ 2 queries executed")
+            .hasMessageContaining("✓ table playset")
+            .hasMessageContaining("✗ no sequential scans")
+    }
+
+    @Test
+    fun `expect before execute is a usage error`() {
+        // given
+        val scenario: suspend ScenarioBuilder.() -> Unit = { expect { queries = 0 } }
+
+        // when
+        val thrown = catchThrowable { runBlocking { harness.scenario("no execute", scenario) } }
+
+        // then
+        assertThat(thrown)
+            .isInstanceOf(IllegalStateException::class.java)
+            .hasMessageContaining("call execute { } before expect { }")
     }
 }

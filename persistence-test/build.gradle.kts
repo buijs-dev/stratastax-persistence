@@ -5,28 +5,25 @@ plugins {
 description =
     "Test harness for asserting on the queries generated persistence code actually runs against PostgreSQL"
 
+@OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
+kotlin {
+    explicitApi()
+    abiValidation()
+}
+
 dependencies {
-    // Aligns the unversioned org.postgresql:postgresql coordinate below with
-    // whatever Quarkus version this repo targets, same as persistence-vertx.
-    implementation(platform(libs.quarkus.bom))
+    // Exposed to consumers: TestExecution carries core's QueryExecution, and PostgresTestDatabase
+    // exposes Testcontainers' PostgreSQLContainer.
+    api(project(":persistence-core"))
+    api(libs.testcontainers.postgresql)
 
-    implementation(project(":persistence-core"))
-    implementation(libs.kotlin.logging)
-    implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.bundles.test)
-
-    // Exposed to downstream testImplementation consumers as this module's own
-    // reusable Postgres-fixture support (PostgresTestDatabase) - not a
-    // test-only dependency of this module itself.
-    implementation(libs.testcontainers.postgresql)
     implementation(libs.testcontainers.junit)
-    implementation(libs.postgresql)
+    implementation(libs.junit.api)
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(stratastax.postgresql)
+    // EXPLAIN (FORMAT JSON) parsing; Jackson 3 only - see the README's dependency notes.
+    implementation(stratastax.jackson3.databind)
 
-    testImplementation(libs.logback)
+    testImplementation(libs.bundles.test)
     testImplementation(project(":persistence-reactive"))
-    testImplementation(libs.jooq)
-    testImplementation(libs.vertx.pg.client)
-    testImplementation(libs.vertx.sql.client)
-    testImplementation(libs.smallrye.mutiny.vertx.pg.client)
-    testImplementation(libs.smallrye.mutiny.kotlin)
 }

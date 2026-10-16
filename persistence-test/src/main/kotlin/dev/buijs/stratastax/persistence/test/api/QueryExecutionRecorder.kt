@@ -16,22 +16,30 @@
  */
 package dev.buijs.stratastax.persistence.test.api
 
-import dev.buijs.stratastax.persistence.core.api.QueryExecution
+import dev.buijs.stratastax.persistence.core.spi.QueryExecution
 import dev.buijs.stratastax.persistence.core.spi.QueryExecutionListener
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * Wire one instance of this into the same `QueryExecutor` (`VertxQueryExecutor(pool, listeners =
- * listOf(recorder))`) a test's generated repositories actually run through, then hand it to a
- * [PersistenceTestHarness] - every query that executor runs, production code path included, is
- * appended here in order.
+ * A [QueryExecutionListener] that records every statement, in order. Wire one into the executors
+ * the code under test runs through (e.g. `VertxTransactionalExecutor(pool, listeners =
+ * listOf(recorder))`) and hand it to a [PersistenceTestHarness].
+ *
+ * Thread-safe: statements are reported from whatever thread the driver completes them on.
  */
-class QueryExecutionRecorder : QueryExecutionListener {
+public class QueryExecutionRecorder : QueryExecutionListener {
 
-    private val executions = mutableListOf<QueryExecution>()
+    private val executions = CopyOnWriteArrayList<QueryExecution>()
 
     override suspend fun executed(execution: QueryExecution) {
         executions += execution
     }
 
-    fun executions(): List<QueryExecution> = executions.toList()
+    /** Every statement recorded so far, in order. */
+    public fun executions(): List<QueryExecution> = executions.toList()
+
+    /** Forgets every statement recorded so far. */
+    public fun clear() {
+        executions.clear()
+    }
 }

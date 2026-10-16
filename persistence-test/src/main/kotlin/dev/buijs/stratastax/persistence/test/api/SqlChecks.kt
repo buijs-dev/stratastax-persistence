@@ -17,42 +17,44 @@
 package dev.buijs.stratastax.persistence.test.api
 
 /**
- * Heuristic, semantic (not exact-string) checks against rendered SQL text - matching on whether a
- * table/column/predicate is *referenced*, not on the query's exact formatting, since asserting on
- * literal SQL text makes tests fragile to harmless rendering changes.
+ * Checks on the SQL text of statements that match on what is referenced - a table, a column, a
+ * predicate - rather than on exact formatting, so harmless rendering changes do not break a test.
  */
 internal object SqlChecks {
 
+    /** Whether a statement reads from or joins [table]. */
     fun usesTable(
-        sqlStatements: List<String>,
+        statements: List<String>,
         table: String,
     ): Boolean {
         val pattern = Regex("(?i)\\b(from|join)\\s+\"?${Regex.escape(table)}\"?\\b")
-        return sqlStatements.any(pattern::containsMatchIn)
+        return statements.any(pattern::containsMatchIn)
     }
 
+    /** Whether a statement mentions [column]. */
     fun usesColumn(
-        sqlStatements: List<String>,
+        statements: List<String>,
         column: String,
     ): Boolean {
         val pattern = Regex("(?i)\\b${Regex.escape(column)}\\b")
-        return sqlStatements.any(pattern::containsMatchIn)
+        return statements.any(pattern::containsMatchIn)
     }
 
-    /** Like [usesColumn], but only counts a match found after a `where` keyword. */
+    /** Whether a statement mentions [column] after a `where` keyword. */
     fun usesPredicate(
-        sqlStatements: List<String>,
+        statements: List<String>,
         column: String,
     ): Boolean {
         val pattern = Regex("(?i)\\b${Regex.escape(column)}\\b")
-        return sqlStatements.any { sql ->
-            val whereIndex = sql.indexOf("where", ignoreCase = true)
-            whereIndex >= 0 && pattern.containsMatchIn(sql.substring(whereIndex))
+        val where = Regex("(?i)\\bwhere\\b")
+        return statements.any { sql ->
+            where.find(sql)?.let { pattern.containsMatchIn(sql.substring(it.range.first)) } ?: false
         }
     }
 
+    /** Whether no statement contains [text], ignoring case. */
     fun doesNotContain(
-        sqlStatements: List<String>,
+        statements: List<String>,
         text: String,
-    ): Boolean = sqlStatements.none { it.contains(text, ignoreCase = true) }
+    ): Boolean = statements.none { it.contains(text, ignoreCase = true) }
 }

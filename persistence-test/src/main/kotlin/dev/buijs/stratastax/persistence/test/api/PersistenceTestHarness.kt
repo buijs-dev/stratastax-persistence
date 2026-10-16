@@ -16,28 +16,29 @@
  */
 package dev.buijs.stratastax.persistence.test.api
 
-import dev.buijs.stratastax.persistence.core.api.QueryExecution
+import dev.buijs.stratastax.persistence.core.spi.QueryExecution
+import dev.buijs.stratastax.persistence.core.spi.runCatchingNonCancellation
 
 /**
- * One query [PersistenceTestHarness.execute] observed [block] cause - [plan] is `null` unless the
- * harness was built with a [QueryPlanAnalyzer].
+ * One statement [PersistenceTestHarness.execute] observed; [plan] is `null` unless the harness has
+ * a [QueryPlanAnalyzer] (and for transaction-control or failed statements, which have no plan).
  */
-data class ObservedQuery(
+public data class ObservedQuery(
     val execution: QueryExecution,
     val plan: QueryPlan? = null,
 )
 
 /**
- * The outcome of one [PersistenceTestHarness.execute] call: [block]'s own result (or the [error] it
- * threw) plus every statement it caused, in the order they ran - [queries] includes transaction
- * control (`BEGIN`, `SAVEPOINT`, `COMMIT`, ...) and failed statements.
+ * The outcome of one [PersistenceTestHarness.execute] call: the block's [result] (or the [error]
+ * it threw) and every statement it caused, in order - [queries] includes transaction control
+ * (`BEGIN`, `SAVEPOINT`, `COMMIT`, ...) and failed statements.
  *
- * The data assertions (`assertQueryCount`, `assertNoNPlusOne`, plan checks, ...) look at
+ * The data assertions (`assertQueryCount`, `assertNoNPlusOne`, the plan checks) look at
  * [dataQueries] only, so a query budget does not change when a call starts running inside a
  * transaction; the transaction assertions (`assertCommitted`, `assertRolledBack`,
  * `assertSingleTransaction`) look at [queries].
  */
-data class TestExecution<T>(
+public data class TestExecution<T>(
     val result: T?,
     val error: Throwable?,
     val queries: List<ObservedQuery>,
@@ -53,30 +54,31 @@ data class TestExecution<T>(
 }
 
 /**
- * Runs [block] and reports exactly the queries it caused - [recorder] is shared across a whole test
- * (or test class), so [execute] snapshots its size before and after [block] rather than resetting
- * it, letting a test call [execute] more than once and still get a query list scoped to each call.
+ * Runs a block and reports exactly the statements it caused, as recorded by [recorder] - wire the
+ * same recorder into the executors the code under test uses (see [QueryExecutionRecorder]).
  *
- * [analyzer], when given, runs `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` for every observed data
- * query that succeeded (transaction-control and failed statements have no plan) after [block]
- * completes - never during, so [block]'s own timing/row-count observations are unaffected by the
- * extra analysis pass - filling in [ObservedQuery.plan] for the plan-based assertions
- * (`assertNoSequentialScans`, `assertUsesIndex`, ...). Omit it (the default) when a test only needs
- * the SQL-rendering/count-based assertions - no need to pay for `EXPLAIN ANALYZE` re-running every
- * query if nothing consults the plan.
+ * The recorder may be shared by a whole test class: [execute] only reports what was recorded while
+ * its block ran.
+ *
+ * With an [analyzer], every successful data statement is also run through `EXPLAIN (ANALYZE,
+ * BUFFERS, FORMAT JSON)` after the block completed (so the block's own timing is unaffected),
+ * which the plan assertions (`assertNoSequentialScans`, `assertUsesIndex`, ...) need.
  */
-class PersistenceTestHarness(
+public class PersistenceTestHarness(
     private val recorder: QueryExecutionRecorder,
     private val analyzer: QueryPlanAnalyzer? = null,
 ) {
 
-    suspend fun <T> execute(block: suspend () -> T): TestExecution<T> {
+    /**
+     * Runs [block] and returns its outcome with the statements it caused. An exception thrown by
+     * [block] is captured in [TestExecution.error], not rethrown; an [Error] (such as a failed
+     * assertion) and a cancellation are rethrown.
+     */
+    public suspend fun <T> execute(block: suspend () -> T): TestExecution<T> {
         val before = recorder.executions().size
-        return runCatching { block() }
-            .fold(
-                onSuccess = { TestExecution(it, null, observedSince(before)) },
-                onFailure = { TestExecution(null, it, observedSince(before)) },
-            )
+        val outcome = runCatchingNonCancellation { block() }
+
+        return TestExecution(outcome.getOrNull(), outcome.exceptionOrNull(), observedSince(before))
     }
 
     private suspend fun observedSince(index: Int): List<ObservedQuery> =

@@ -20,51 +20,75 @@ package dev.buijs.stratastax.persistence.core.api
  * Runs several persistence calls as one atomic unit: either every write inside [transaction]'s
  * block commits, or none does.
  *
- * Every create/update/delete call made inside the block (directly, or from any suspend function it
- * calls) takes part in the same transaction, and so does every read: a read sees the block's own
- * uncommitted writes. A call that fails inside the block only undoes its own work (it runs inside a
- * savepoint), so the block may catch that failure and carry on; an exception that escapes the block
+ * Every read and write made inside the block (directly, or from any suspend function it calls)
+ * takes part in the same transaction, so a read sees the block's own uncommitted writes. A
+ * persistence call that fails inside the block only undoes its own work (it runs inside a
+ * savepoint): the block may catch that failure and carry on. An exception that escapes the block
  * rolls back everything.
  *
  * Keep slow, non-database work (HTTP calls, LLM requests) outside the block: a transaction holds a
  * pooled connection for its whole duration. A transaction is bound to one coroutine and must not be
  * used from several coroutines concurrently.
  */
-interface UnitOfWork {
-    suspend fun <T> transaction(
+public interface UnitOfWork {
+
+    /**
+     * Runs [block] in a transaction configured by [options] and returns its result.
+     *
+     * @throws Throwable whatever [block] throws, after the transaction (or savepoint) was rolled
+     *   back.
+     */
+    public suspend fun <T> transaction(
         options: TransactionOptions = TransactionOptions.DEFAULT,
         block: suspend () -> T,
     ): T
 }
 
 /**
- * [isolation] and [readOnly] only apply when a new transaction is started; a call that joins an
- * already running transaction ([TransactionPropagation.REQUIRED]) inherits that transaction's own
- * settings. `null` [isolation] means the database default (`READ COMMITTED` for Postgres).
+ * How [UnitOfWork.transaction] runs its block.
+ *
+ * [isolation] and [readOnly] apply when a new transaction is started. A call that joins a running
+ * transaction ([TransactionPropagation.REQUIRED]) inherits that transaction's settings, except that
+ * joining a read-write transaction with [readOnly] set is rejected rather than silently writing.
+ *
+ * @property isolation the isolation level, `null` for the database default (`READ COMMITTED` on
+ *   Postgres).
+ * @property readOnly whether the transaction may only read.
+ * @property propagation whether to join a running transaction or always start a new one.
  */
-data class TransactionOptions(
+public data class TransactionOptions(
     val isolation: TransactionIsolation? = null,
     val readOnly: Boolean = false,
     val propagation: TransactionPropagation = TransactionPropagation.REQUIRED,
 ) {
-    companion object {
-        val DEFAULT = TransactionOptions()
+
+    public companion object {
+
+        /** Database-default isolation, read-write, [TransactionPropagation.REQUIRED]. */
+        public val DEFAULT: TransactionOptions = TransactionOptions()
     }
 }
 
-enum class TransactionIsolation {
+/** The SQL standard isolation levels a transaction can run at. */
+public enum class TransactionIsolation {
     READ_COMMITTED,
     REPEATABLE_READ,
     SERIALIZABLE,
 }
 
-enum class TransactionPropagation {
-    /** Join the running transaction (inside a savepoint) or start a new one if there is none. */
+/** What happens when a transaction is requested while one is already running. */
+public enum class TransactionPropagation {
+
+    /** Join the running transaction (inside a savepoint), or start a new one if there is none. */
     REQUIRED,
 
     /**
-     * Always start a new, independent transaction on its own connection; it commits or rolls back
-     * regardless of the outcome of any transaction already running.
+     * Always start a new, independent transaction on its own connection: it commits or rolls back
+     * regardless of the outcome of the transaction already running.
+     *
+     * The outer transaction keeps its connection while the new one runs, so this needs two pooled
+     * connections at once: with a small pool, many concurrent callers can exhaust it and wait on
+     * each other.
      */
     REQUIRES_NEW,
 }

@@ -18,145 +18,129 @@ package dev.buijs.stratastax.persistence.test.api
 
 import kotlin.time.Duration
 
-/** One line of a [ScenarioReport] - a single named check, passed or not. */
-data class ExpectationOutcome(
+/** One check of a [ScenarioReport]: passed or not, grouped under SQL, PLAN or PERFORMANCE. */
+public data class ExpectationOutcome(
     val group: String,
     val label: String,
     val passed: Boolean,
     val detail: String? = null,
 )
 
-/**
- * The full result of one [PersistenceTestHarness.scenario] - every expectation that ran, grouped
- * and rendered the way the doc's own examples show (`✓`/`✗` per line, grouped under
- * SQL/PLAN/PERFORMANCE headings).
- */
-class ScenarioReport(
-    val name: String,
-    val outcomes: List<ExpectationOutcome>,
+/** Every check of one [scenario], rendered as one readable report. */
+public class ScenarioReport(
+    public val name: String,
+    public val outcomes: List<ExpectationOutcome>,
 ) {
 
-    val passed: Boolean
+    /** Whether every check passed. */
+    public val passed: Boolean
         get() = outcomes.all { it.passed }
 
-    fun render(): String =
+    /** The report: `✓`/`✗` per check, grouped under SQL/PLAN/PERFORMANCE headings. */
+    public fun render(): String =
         buildString {
             appendLine("${if (passed) "✓" else "✗"} $name")
             appendLine()
-            outcomes
-                .groupBy { it.group }
-                .forEach { (group, groupOutcomes) ->
-                    appendLine(group)
-                    groupOutcomes.forEach { outcome ->
-                        val mark = if (outcome.passed) "✓" else "✗"
-                        appendLine("  $mark ${outcome.label}")
-                        if (!outcome.passed && outcome.detail != null) {
-                            appendLine("    ${outcome.detail}")
-                        }
+            outcomes.groupBy { it.group }.forEach { (group, groupOutcomes) ->
+                appendLine(group)
+                groupOutcomes.forEach { outcome ->
+                    appendLine("  ${if (outcome.passed) "✓" else "✗"} ${outcome.label}")
+                    if (!outcome.passed && outcome.detail != null) {
+                        appendLine("    ${outcome.detail}")
                     }
-
-                    appendLine()
                 }
+
+                appendLine()
+            }
         }
 }
 
-private fun requirePlans(queries: List<ObservedQuery>): List<QueryPlan> {
-    val plans = queries.mapNotNull { it.plan }
-
-    check(plans.size == queries.size) {
-        "plan {} / performance {} need every observed query to have a plan - " +
-            "build the PersistenceTestHarness with a QueryPlanAnalyzer."
-    }
-
-    return plans
-}
-
-class SqlExpectationBuilder internal constructor(
-    private val sqlStatements: List<String>,
+/** Checks on the SQL text of the data statements, see [SqlChecks]. */
+public class SqlExpectationBuilder internal constructor(
+    private val statements: List<String>,
 ) {
 
     internal val outcomes = mutableListOf<ExpectationOutcome>()
 
-    fun usesTable(table: String) {
+    /** A statement reads from or joins [table]. */
+    public fun usesTable(table: String) {
         outcomes +=
-            ExpectationOutcome("SQL", "table $table", SqlChecks.usesTable(sqlStatements, table))
+            ExpectationOutcome("SQL", "table $table", SqlChecks.usesTable(statements, table))
     }
 
-    fun usesColumn(column: String) {
+    /** A statement mentions [column]. */
+    public fun usesColumn(column: String) {
         outcomes +=
-            ExpectationOutcome("SQL", "column $column", SqlChecks.usesColumn(sqlStatements, column))
+            ExpectationOutcome("SQL", "column $column", SqlChecks.usesColumn(statements, column))
     }
 
-    fun usesPredicate(column: String) {
+    /** A statement filters on [column]. */
+    public fun usesPredicate(column: String) {
         outcomes +=
             ExpectationOutcome(
                 "SQL",
                 "predicate $column",
-                SqlChecks.usesPredicate(sqlStatements, column),
+                SqlChecks.usesPredicate(statements, column),
             )
     }
 
-    fun doesNotContain(text: String) {
+    /** No statement contains [text]. */
+    public fun doesNotContain(text: String) {
         outcomes +=
             ExpectationOutcome(
                 "SQL",
                 "does not contain \"$text\"",
-                SqlChecks.doesNotContain(sqlStatements, text),
+                SqlChecks.doesNotContain(statements, text),
             )
     }
 }
 
-class PlanExpectationBuilder internal constructor(
+/** Checks on the plans of the data statements. */
+public class PlanExpectationBuilder internal constructor(
     private val plans: List<QueryPlan>,
 ) {
 
     internal val outcomes = mutableListOf<ExpectationOutcome>()
 
-    /** Checked once the `plan { }` block finishes - see [maxBufferReads] too. */
-    var maxRowsRead: Long? = null
+    /** At most this many rows read in total, checked when the block ends. */
+    public var maxRowsRead: Long? = null
 
-    /** Checked once the `plan { }` block finishes - see [maxRowsRead] too. */
-    var maxBufferReads: Long? = null
+    /** At most this many shared buffer blocks read in total, checked when the block ends. */
+    public var maxBufferReads: Long? = null
 
-    fun noSequentialScans() {
-        val offenders = plans.flatMap { it.flatten() }.filter { it.isSequentialScan() }
+    /** No plan contains a sequential scan. */
+    public fun noSequentialScans() {
+        val offenders = plans.flatMap { it.sequentialScans() }
 
         outcomes +=
             ExpectationOutcome(
                 "PLAN",
                 "no sequential scans",
                 offenders.isEmpty(),
-                offenders.joinToString { it.relationName ?: "?" }.ifEmpty { null },
+                offenders
+                    .joinToString {
+                        it.relationName
+                            ?: "?"
+                    }.ifEmpty { null },
             )
     }
 
-    fun usesIndex(name: String) {
-        val used = plans.flatMap { it.flatten() }.any { it.indexName == name }
-
-        outcomes += ExpectationOutcome("PLAN", "uses index $name", used)
+    /** Some plan used index [name]. */
+    public fun usesIndex(name: String) {
+        outcomes +=
+            ExpectationOutcome("PLAN", "uses index $name", plans.any { name in it.indexesUsed() })
     }
 
     internal fun finish() {
         maxRowsRead?.let { max ->
-            val actual =
-                plans.sumOf { plan ->
-                    plan
-                        .flatten()
-                        .filter { it.children.isEmpty() }
-                        .sumOf { (it.actualRows ?: 0L) * (it.actualLoops ?: 1L) }
-                }
+            val actual = plans.sumOf { it.rowsRead() }
 
             outcomes +=
                 ExpectationOutcome("PLAN", "rows read <= $max", actual <= max, "actual: $actual")
         }
 
         maxBufferReads?.let { max ->
-            val actual =
-                plans.sumOf { plan ->
-                    plan.flatten().sumOf {
-                        (it.sharedHitBlocks ?: 0L) + (it.sharedReadBlocks ?: 0L)
-                    }
-                }
+            val actual = plans.sumOf { it.bufferReads() }
 
             outcomes +=
                 ExpectationOutcome("PLAN", "buffers read <= $max", actual <= max, "actual: $actual")
@@ -164,14 +148,15 @@ class PlanExpectationBuilder internal constructor(
     }
 }
 
-class PerformanceExpectationBuilder internal constructor(
+/** Checks on the execution time of the data statements. Machine-dependent: use sparingly. */
+public class PerformanceExpectationBuilder internal constructor(
     private val plans: List<QueryPlan>,
 ) {
 
     internal val outcomes = mutableListOf<ExpectationOutcome>()
 
-    /** Checked once the `performance { }` block finishes. CI-machine-dependent - use sparingly. */
-    var maxExecutionTime: Duration? = null
+    /** Every statement executes in at most this long, checked when the block ends. */
+    public var maxExecutionTime: Duration? = null
 
     internal fun finish() {
         maxExecutionTime?.let { max ->
@@ -187,29 +172,33 @@ class PerformanceExpectationBuilder internal constructor(
     }
 }
 
-class ExpectationBuilder internal constructor(
+/** The expectations of a scenario, see [scenario]. */
+public class ExpectationBuilder internal constructor(
     private val execution: TestExecution<*>,
 ) {
 
     internal val outcomes = mutableListOf<ExpectationOutcome>()
 
-    /** Checked once the `expect { }` block finishes. */
-    var queries: Int? = null
+    /** Exactly this many data statements ran, checked when the block ends. */
+    public var queries: Int? = null
 
-    fun sql(block: SqlExpectationBuilder.() -> Unit) {
+    /** Checks on the SQL text. */
+    public fun sql(block: SqlExpectationBuilder.() -> Unit) {
         val builder = SqlExpectationBuilder(execution.dataQueries.map { it.execution.query.sql })
         builder.block()
         outcomes += builder.outcomes
     }
 
-    fun plan(block: PlanExpectationBuilder.() -> Unit) {
+    /** Checks on the plans; needs a [QueryPlanAnalyzer]. */
+    public fun plan(block: PlanExpectationBuilder.() -> Unit) {
         val builder = PlanExpectationBuilder(requirePlans(execution.dataQueries))
         builder.block()
         builder.finish()
         outcomes += builder.outcomes
     }
 
-    fun performance(block: PerformanceExpectationBuilder.() -> Unit) {
+    /** Checks on the execution times; needs a [QueryPlanAnalyzer]. */
+    public fun performance(block: PerformanceExpectationBuilder.() -> Unit) {
         val builder = PerformanceExpectationBuilder(requirePlans(execution.dataQueries))
         builder.block()
         builder.finish()
@@ -222,7 +211,7 @@ class ExpectationBuilder internal constructor(
             outcomes +=
                 ExpectationOutcome(
                     "SQL",
-                    "$expected quer${if (expected == 1) "y" else "ies"} executed",
+                    "$expected ${if (expected == 1) "query" else "queries"} executed",
                     actual == expected,
                     "actual: $actual",
                 )
@@ -230,28 +219,24 @@ class ExpectationBuilder internal constructor(
     }
 }
 
-/**
- * `execute`'s own block result is never consumed by a scenario report (unlike plain
- * [PersistenceTestHarness.execute]) - a scenario is entirely about the queries it caused, not the
- * value it returned - so this stays non-generic rather than forcing every caller to spell out a
- * type argument Kotlin can't infer from usage alone.
- */
-class ScenarioBuilder internal constructor(
+/** One scenario: run a block with [execute], then check what it did with [expect]. */
+public class ScenarioBuilder internal constructor(
     private val harness: PersistenceTestHarness,
 ) {
 
     private var execution: TestExecution<*>? = null
     private val outcomes = mutableListOf<ExpectationOutcome>()
 
-    suspend fun execute(block: suspend () -> Any?) {
+    /** Runs [block], recording the statements it causes. */
+    public suspend fun execute(block: suspend () -> Any?) {
         execution = harness.execute(block)
     }
 
-    fun expect(block: ExpectationBuilder.() -> Unit) {
-        val currentExecution =
-            checkNotNull(execution) { "call execute { } before expect { } in a scenario" }
+    /** Checks what the block of [execute] did. */
+    public fun expect(block: ExpectationBuilder.() -> Unit) {
+        val current = checkNotNull(execution) { "call execute { } before expect { } in a scenario" }
 
-        val builder = ExpectationBuilder(currentExecution)
+        val builder = ExpectationBuilder(current)
         builder.block()
         builder.finish()
         outcomes += builder.outcomes
@@ -261,24 +246,39 @@ class ScenarioBuilder internal constructor(
 }
 
 /**
- * The consumer-facing entry point the doc's own examples build toward: `harness.scenario("search
- * playsets") { execute { ... }; expect { queries = 1; sql { usesTable("playset") }; plan {
- * noSequentialScans() } } }`.
+ * Runs a named scenario and returns its report, e.g.
  *
- * Throws an [AssertionError] with the full rendered [ScenarioReport] (every expectation, passed and
- * failed alike) if anything failed - a scenario is meant to be read as one report, not stopped at
- * the first broken check.
+ * ```
+ * harness.scenario("search playsets") {
+ *     execute { playsets.findAll(search) }
+ *     expect {
+ *         queries = 1
+ *         sql { usesTable("playset") }
+ *         plan { noSequentialScans() }
+ *     }
+ * }
+ * ```
+ *
+ * Every check runs, also after one failed; when any failed this throws an [AssertionError] holding
+ * the full rendered report.
  */
-suspend fun PersistenceTestHarness.scenario(
+public suspend fun PersistenceTestHarness.scenario(
     name: String,
     block: suspend ScenarioBuilder.() -> Unit,
 ): ScenarioReport {
     val builder = ScenarioBuilder(this)
     builder.block()
     val report = builder.buildReport(name)
-    if (!report.passed) {
-        throw AssertionError(report.render())
+    if (!report.passed) throw AssertionError(report.render())
+    return report
+}
+
+private fun requirePlans(queries: List<ObservedQuery>): List<QueryPlan> {
+    val plans = queries.mapNotNull { it.plan }
+
+    check(plans.size == queries.size) {
+        "plan { } and performance { } need a plan for every statement - build the PersistenceTestHarness with a QueryPlanAnalyzer"
     }
 
-    return report
+    return plans
 }
