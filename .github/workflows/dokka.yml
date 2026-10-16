@@ -1,0 +1,22 @@
+name: Dokka
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  dokka:
+    uses: buijs-dev/ci-templates/.github/workflows/dokka.yml@main
+    with:
+      root-dir: ${{ vars.ROOT_DIR || '.' }}

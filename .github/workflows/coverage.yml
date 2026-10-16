@@ -1,0 +1,14 @@
+name: Coverage
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  coverage:
+    uses: buijs-dev/ci-templates/.github/workflows/coverage.yml@main
+    with:
+      root-dir: ${{ vars.ROOT_DIR || '.' }}
+    secrets: inherit

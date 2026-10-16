@@ -1,0 +1,16 @@
+name: Publish Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+jobs:
+  publish:
+    uses: buijs-dev/ci-templates/.github/workflows/publish-release.yml@main
+    with:
+      root-dir: ${{ vars.ROOT_DIR || '.' }}

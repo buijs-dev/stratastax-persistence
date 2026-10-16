@@ -1,0 +1,9 @@
+[versions]
+ambient-context = "1.0.0"
+entity = "1.0.0"
+search = "1.0.0"
+
+[libraries]
+ambient-context = { group = "dev.buijs.stratastax", name = "ambient-context", version.ref = "ambient-context" }
+entity = { group = "dev.buijs.stratastax", name = "entity", version.ref = "entity" }
+search-core = { group = "dev.buijs.stratastax", name = "search-core", version.ref = "search" }
