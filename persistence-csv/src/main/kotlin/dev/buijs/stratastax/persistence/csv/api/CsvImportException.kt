@@ -17,10 +17,10 @@
 package dev.buijs.stratastax.persistence.csv.api
 
 /**
- * Thrown by a [dev.buijs.stratastax.persistence.csv.spi.CsvRowContext] implementation when a column
- * is missing from the CSV's own header, or its raw string value can't be parsed as the requested
- * type.
+ * Thrown while reading a CSV file: a column is missing from the header, a cell cannot be read as
+ * the requested type, or (with [CsvReadOptions.failOnInvalidRow]) a row could not be mapped.
  */
-class CsvImportException(
+public class CsvImportException(
     message: String,
-) : RuntimeException(message)
+    cause: Throwable? = null,
+) : IllegalArgumentException(message, cause)

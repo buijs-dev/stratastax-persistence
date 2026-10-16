@@ -14,17 +14,30 @@
  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package dev.buijs.stratastax.persistence.reactive.api
+package dev.buijs.stratastax.persistence.csv.internal
 
-import dev.buijs.stratastax.persistence.core.api.RenderedQuery
-import org.jooq.Query
+import dev.buijs.stratastax.persistence.csv.api.CsvImportException
 
 /**
- * Renders a jOOQ [Query] to the SQL text/bind values an actual driver will run - isolated from
- * [QueryExecutor] so a `persistence-testkit` (or anything else) can render exactly the same SQL
- * production does without having to run it.
+ * The header row of one CSV file, built once per file: resolves the column name a mapper asks for
+ * to the header's own name through [normalize].
  */
-interface SqlRenderer {
+internal class CsvHeader(
+    private val names: List<String>,
+    private val normalize: (String) -> String,
+) {
 
-    fun render(query: Query): RenderedQuery
+    private val byNormalizedName: Map<String, String> =
+        names.groupBy(normalize).mapValues { (normalized, matches) ->
+            matches.singleOrNull()
+                ?: throw CsvImportException(
+                    "CSV header columns $matches all normalize to '$normalized' - rename one of them",
+                )
+        }
+
+    /** The header's own name for [name], or `null` when the header has no such column. */
+    fun resolve(name: String): String? = byNormalizedName[normalize(name)]
+
+    /** The header names, sorted, for error messages. */
+    fun describe(): List<String> = names.sorted()
 }

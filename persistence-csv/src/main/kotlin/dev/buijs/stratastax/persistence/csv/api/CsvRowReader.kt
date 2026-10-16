@@ -16,16 +16,34 @@
  */
 package dev.buijs.stratastax.persistence.csv.api
 
-import dev.buijs.stratastax.persistence.csv.spi.CsvRowMapper
+import dev.buijs.stratastax.persistence.core.spi.RowMapper
+import dev.buijs.stratastax.persistence.csv.internal.CsvHeader
+import dev.buijs.stratastax.persistence.csv.internal.CsvRowContext
 import org.apache.commons.csv.CSVFormat
 import org.apache.commons.csv.CSVParser
 import java.io.Reader
 
-object CsvRowReader {
+/**
+ * Reads an RFC 4180 CSV file with a header row and maps every data row with a [RowMapper] - the
+ * same mapper type that maps a database row, so one (generated) mapper can serve both.
+ *
+ * Each row is read through a [dev.buijs.stratastax.persistence.core.spi.RowContext]: columns are
+ * matched by [CsvReadOptions.columnNameNormalizer], an empty cell reads as `null`, and a
+ * multi-valued cell holds either a JSON array (`["a","b"]`) or a [CsvReadOptions.listDelimiter]
+ * separated list. A JSON object or array of objects in a cell is read with `map`/`objectList`.
+ */
+public object CsvRowReader {
 
-    fun <T> read(
+    /**
+     * Maps every data row of [input] with [mapper]. [input] is read completely but not closed.
+     *
+     * @throws CsvImportException when the header has two columns with the same normalized name,
+     *   or, with [CsvReadOptions.failOnInvalidRow], for the first row [mapper] cannot map.
+     */
+    public fun <T> read(
         input: Reader,
-        mapper: CsvRowMapper<T>,
+        mapper: RowMapper<T>,
+        options: CsvReadOptions = CsvReadOptions.DEFAULT,
     ): CsvImportResult<T> {
         val format =
             CSVFormat.RFC4180
@@ -33,18 +51,24 @@ object CsvRowReader {
                 .setHeader()
                 .setSkipHeaderRecord(true)
                 .build()
-        return CSVParser.parse(input, format).use { parser ->
-            val imported = mutableListOf<T>()
-            val skipped = mutableListOf<Int>()
-            parser.mapIndexed { index, record ->
-                try {
-                    imported.add(mapper.map(CsvRowContext(record)))
-                } catch (_: RuntimeException) {
-                    skipped.add(index)
+        val parser = CSVParser.parse(input, format)
+        val header = CsvHeader(parser.headerNames, options.columnNameNormalizer)
+        val imported = mutableListOf<T>()
+        val skipped = mutableListOf<CsvSkippedRow>()
+        parser.forEachIndexed { index, record ->
+            val recordNumber = index + 1L
+            try {
+                imported += mapper.map(CsvRowContext(record, header, options))
+            } catch (e: Exception) {
+                val reason = e.message ?: e.javaClass.simpleName
+                if (options.failOnInvalidRow) {
+                    throw CsvImportException("Record $recordNumber could not be mapped: $reason", e)
                 }
-            }
 
-            CsvImportResult(imported, skipped)
+                skipped += CsvSkippedRow(recordNumber, reason)
+            }
         }
+
+        return CsvImportResult(imported, skipped)
     }
 }

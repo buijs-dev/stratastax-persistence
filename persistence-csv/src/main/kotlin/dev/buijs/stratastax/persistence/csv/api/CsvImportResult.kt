@@ -16,8 +16,25 @@
  */
 package dev.buijs.stratastax.persistence.csv.api
 
-data class CsvImportResult<T>(
+/**
+ * What [CsvRowReader.read] produced.
+ *
+ * @property imported the mapped rows, in file order.
+ * @property skipped the rows that could not be mapped, in file order.
+ */
+public data class CsvImportResult<T>(
     val imported: List<T>,
-    /** Line numbers skipped (if any) where header is line 0. */
-    val skipped: List<Int>,
+    val skipped: List<CsvSkippedRow>,
+)
+
+/**
+ * A data row [CsvRowReader] skipped.
+ *
+ * @property record the 1-based number of the data record (the header is record 0). Equal to the
+ *   line number unless an earlier cell spans several lines.
+ * @property reason why the row could not be mapped.
+ */
+public data class CsvSkippedRow(
+    val record: Long,
+    val reason: String,
 )

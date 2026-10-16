@@ -3,15 +3,17 @@ plugins {
 }
 
 description =
-    "commons-csv implementation of the generic CSV-row-mapping API used throughout Stratastax"
+    "commons-csv implementation of the generic row-mapping API used throughout Stratastax"
+
+@OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
+kotlin {
+    explicitApi()
+    abiValidation()
+}
 
 dependencies {
-    implementation(stratastax.entity)
-    implementation(project(":persistence-core"))
+    api(project(":persistence-core"))
     implementation(libs.commons.csv)
-    implementation(libs.kotlin.logging)
-    implementation(libs.mockk)
-    implementation(libs.bundles.test)
-
-    testImplementation(libs.logback)
+    implementation(stratastax.jackson3.databind)
+    testImplementation(libs.bundles.test)
 }

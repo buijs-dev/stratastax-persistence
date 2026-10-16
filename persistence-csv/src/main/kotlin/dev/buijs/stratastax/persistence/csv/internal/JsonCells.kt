@@ -14,22 +14,19 @@
  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package dev.buijs.stratastax.persistence.reactive.app
+package dev.buijs.stratastax.persistence.csv.internal
 
-import org.jooq.Field
+import tools.jackson.databind.DeserializationFeature
+import tools.jackson.databind.json.JsonMapper
+
+private val mapper: JsonMapper =
+    JsonMapper
+        .builder()
+        .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+        .build()
 
 /**
- * Same shape as [CreateValues], for `UPDATE`. The [List]-taking constructor is what a generated
- * `${Entity}UpdateMapper` actually calls (built via `listOfNotNull(...)`, since a
- * `PatchField`-typed entry can be `null` - meaning "leave this column out of the `SET` clause" -
- * see [dev.buijs.stratastax.entity.core.api.PatchField]); the `vararg` constructor stays for
- * hand-written/test callers.
+ * Decodes the JSON in a cell to plain values: [Map], [List], [String], [Number], [Boolean] or
+ * `null`. No data binding to own types, so no reflection is involved.
  */
-class UpdateValues(
-    entries: List<Pair<Field<*>, Any?>>,
-) {
-
-    constructor(vararg entries: Pair<Field<*>, Any?>) : this(entries.toList())
-
-    val values: Map<Field<*>, Any?> = entries.toMap()
-}
+internal fun decodeJson(json: String): Any? = mapper.readValue(json, Any::class.java)
