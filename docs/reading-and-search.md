@@ -98,6 +98,7 @@ filter compares and a sort orders by:
 ```kotlin
 val searchSql =
     SearchSql(
+        dialect = PostgresDialect,
         select = PlaysetSql.SELECT,
         countSelect = PlaysetSql.COUNT,
         fields =

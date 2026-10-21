@@ -109,7 +109,7 @@ with a scope, with a search builder block or with a `SearchRequest` (returning c
 `findAllForUpdate`, and `findAll<P>` / `findAll<P>List` for every projection.
 
 ## What it uses of the library
-All from the `spi` package of `persistence-reactive`:
+All from the `spi` package of `persistence-reactive`, plus `PostgresDialect` (`persistence-postgres`) as the `dialect` of each `SearchSql`:
 
 | For                |                                                                                                                                                                      |
 |--------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|

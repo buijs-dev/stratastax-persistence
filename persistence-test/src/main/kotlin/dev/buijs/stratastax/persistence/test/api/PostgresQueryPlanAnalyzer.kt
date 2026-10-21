@@ -22,8 +22,12 @@ import kotlinx.coroutines.withContext
 import org.postgresql.util.PGobject
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
+import java.net.URI
+import java.net.URL
 import java.sql.Connection
 import java.sql.DriverManager
+import java.time.Instant
+import java.time.ZoneOffset
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -66,7 +70,7 @@ public class PostgresQueryPlanAnalyzer(
                     index,
                     value,
                     ->
-                    statement.setObject(index + 1, toJdbc(connection, value))
+                    statement.setObject(index + 1, toJdbc(connection, mapper, value))
                 }
 
                 statement.executeQuery().use { resultSet ->
@@ -146,37 +150,48 @@ internal fun toJdbcPlaceholders(sql: String): String =
     }
 
 /**
- * A bind value as JDBC takes it: jOOQ's `JSON`/`JSONB` (matched by name, so this module does not
- * need jOOQ itself) as `PGobject`s, arrays as SQL arrays.
+ * A bind value as JDBC takes it, the way the reactive executor binds it: a `Map` (or a Vert.x JSON
+ * value, matched by name so this module needs no Vert.x) as a jsonb `PGobject`, an array as a SQL
+ * array, a `URI`/`URL` as text, an enum by name and an `Instant` as a UTC `OffsetDateTime`.
  */
 private fun toJdbc(
     connection: Connection,
+    mapper: JsonMapper,
     value: Any?,
 ): Any? =
     when {
         value == null -> {
             null
         }
-        value.javaClass.name == "org.jooq.JSONB" -> {
-            PGobject().apply {
-                type = "jsonb"
-                this.value =
-                    value.toString()
-            }
+        value is Map<*, *> -> {
+            json(mapper.writeValueAsString(value))
         }
-        value.javaClass.name == "org.jooq.JSON" -> {
-            PGobject().apply {
-                type = "json"
-                this.value =
-                    value.toString()
-            }
+        value.javaClass.name in VERTX_JSON -> {
+            json(value.toString())
         }
         value is Array<*> -> {
             connection.createArrayOf(sqlArrayType(value), value)
         }
+        value is URI || value is URL -> {
+            value.toString()
+        }
+        value is Enum<*> -> {
+            value.name
+        }
+        value is Instant -> {
+            value.atOffset(ZoneOffset.UTC)
+        }
         else -> {
             value
         }
+    }
+
+private val VERTX_JSON = setOf("io.vertx.core.json.JsonObject", "io.vertx.core.json.JsonArray")
+
+private fun json(text: String): PGobject =
+    PGobject().apply {
+        type = "jsonb"
+        value = text
     }
 
 private fun sqlArrayType(array: Array<*>): String =

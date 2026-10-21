@@ -18,6 +18,7 @@ package dev.buijs.stratastax.persistence.reactive.internal
 
 import dev.buijs.stratastax.entity.core.api.SortDirection
 import dev.buijs.stratastax.persistence.reactive.spi.SearchSql
+import dev.buijs.stratastax.persistence.reactive.spi.SearchSyntax
 import dev.buijs.stratastax.persistence.reactive.spi.SearchTarget
 import dev.buijs.stratastax.persistence.reactive.spi.SqlStatement
 import dev.buijs.stratastax.persistence.reactive.spi.SqlType
@@ -37,11 +38,14 @@ import dev.buijs.stratastax.search.core.api.SearchQuery
 /**
  * Renders the runtime parts of one search statement over the generated
  * fragments of [searchSql] (the filter, the sort, the cursor seek, and the limit)
- * collecting their parameters as it goes: one writer per statement.
+ * collecting their parameters as it goes: one writer per statement. Every piece of syntax comes
+ * from the [SearchSyntax] of the [SearchSql.dialect]; only how the pieces combine is decided here.
  */
 internal class SearchSqlWriter(
     private val searchSql: SearchSql,
 ) {
+
+    private val syntax: SearchSyntax = searchSql.dialect.search
 
     private val params = mutableListOf<Any?>()
 
@@ -66,7 +70,8 @@ internal class SearchSqlWriter(
                         .append(orderBy.joinToString(", "))
                 }
 
-                limit?.let { append("\nLIMIT ").append(it) }
+                limit?.let { append("\n").append(it) }
+
                 lock?.let { append("\n").append(it) }
             }
 
@@ -81,20 +86,16 @@ internal class SearchSqlWriter(
         listOfNotNull(query.filter?.let { condition(it.root) }, scope?.let(::condition)) +
             searchSql.defaultConditions
 
-    fun limit(limit: Int): String = bind(limit, SqlType.INTEGER)
+    fun limit(limit: Int): String = syntax.limit(bind(limit, SqlType.INTEGER))
 
     /**
-     * The sort of [query], NULL sorting as the largest value (`ASC NULLS LAST`, `DESC NULLS
-     * FIRST`). A page before a cursor reads the order backwards.
+     * The sort of [query], NULL sorting as the largest value (see [SearchSyntax.orderBy]). A page
+     * before a cursor reads the order backwards.
      */
     fun orderBy(query: SearchQuery): List<String> {
         val backwards = query.cursor?.direction == CursorDirection.BEFORE
         return query.sort.fields.map {
-            val column = sortColumn(it.field.name)
-            when (it.direction.readAs(backwards)) {
-                SortDirection.ASC -> "$column ASC NULLS LAST"
-                SortDirection.DESC -> "$column DESC NULLS FIRST"
-            }
+            syntax.orderBy(sortColumn(it.field.name), it.direction.readAs(backwards))
         }
     }
 
@@ -161,8 +162,7 @@ internal class SearchSqlWriter(
             }
             is LikeExpression -> {
                 conditionOn(expression.field.name, matchesNull = false) { column, type ->
-                    val operator = if (expression.ignoreCase) "ILIKE" else "LIKE"
-                    "$column $operator ${bind(expression.pattern, type)} ESCAPE '\\'"
+                    syntax.like(column, bind(expression.pattern, type), expression.ignoreCase)
                 }
             }
         }
@@ -237,8 +237,8 @@ internal class SearchSqlWriter(
 
     /**
      * `IN` matches NULL when one of the values is null (SQL's own `IN` never does); `OUT` with a
-     * null among the values does not match NULL either. Several values of an array-bindable type
-     * are bound as one array, so the text does not depend on the number of values.
+     * null among the values does not match NULL either. Several values of a type the dialect binds
+     * as an array are bound as one, so the text does not depend on the number of values.
      */
     private fun membership(
         column: String,
@@ -254,10 +254,16 @@ internal class SearchSqlWriter(
             InOperator.IN -> {
                 val matchesValue =
                     when {
-                        nonNull.isEmpty() -> null
-                        nonNull.size == 1 -> "$column = ${bind(nonNull.single(), type)}"
-                        type.bindsAsArray -> "$column = ANY(${bindArray(nonNull, type)})"
-                        else -> "$column IN (${nonNull.joinToString { bind(it, type) }})"
+                        nonNull.isEmpty() -> {
+                            null
+                        }
+                        nonNull.size == 1 -> {
+                            "$column = ${bind(nonNull.single(), type)}"
+                        }
+                        else -> {
+                            bindArray(nonNull, type)?.let { syntax.anyOf(column, it) }
+                                ?: "$column IN (${nonNull.joinToString { bind(it, type) }})"
+                        }
                     }
 
                 any(listOfNotNull(matchesValue, if (hasNull) "$column IS NULL" else null))
@@ -265,12 +271,16 @@ internal class SearchSqlWriter(
             InOperator.OUT -> {
                 val notAValue =
                     when {
-                        nonNull.isEmpty() -> null
-                        nonNull.size > 1 && type.bindsAsArray -> "$column <> ALL(${bindArray(
-                            nonNull,
-                            type,
-                        )})"
-                        else -> "$column NOT IN (${nonNull.joinToString { bind(it, type) }})"
+                        nonNull.isEmpty() -> {
+                            null
+                        }
+                        else -> {
+                            nonNull
+                                .takeIf { it.size > 1 }
+                                ?.let { bindArray(it, type) }
+                                ?.let { syntax.noneOf(column, it) }
+                                ?: "$column NOT IN (${nonNull.joinToString { bind(it, type) }})"
+                        }
                     }
 
                 all(listOfNotNull(notAValue, if (hasNull) "$column IS NOT NULL" else null))
@@ -288,12 +298,14 @@ internal class SearchSqlWriter(
         val direction = keys.first().direction
         val eligible = keys.all { it.direction == direction && it.value != null && it.neverNull }
 
-        if (!eligible || keys.size < 2) {
+        if (!syntax.rowValueComparison || !eligible || keys.size < 2) {
             return null
         }
 
         val columns = keys.joinToString(", ", "(", ")") { it.column }
+
         val values = keys.joinToString(", ", "(", ")") { bind(it.value, it.type) }
+
         return if (direction == SortDirection.ASC) {
             "$columns > $values"
         } else {
@@ -313,7 +325,7 @@ internal class SearchSqlWriter(
         when (key.direction) {
             SortDirection.ASC -> {
                 if (key.value == null) {
-                    "FALSE"
+                    syntax.alwaysFalse
                 } else {
                     "(${key.column} > ${bind(key.value, key.type)} OR ${key.column} IS NULL)"
                 }
@@ -327,20 +339,24 @@ internal class SearchSqlWriter(
             }
         }
 
-    /** A placeholder for [value], cast to [type]: `$3::uuid`. */
+    /** The dialect's placeholder for [value] of SQL type [type], e.g. `$3::uuid`. */
     private fun bind(
         value: Any?,
         type: SqlType,
     ): String {
         params += value
-        return $$"$$${params.size}::$${type.sqlName}"
+        return syntax.parameter(params.size, type)
     }
 
-    /** One array placeholder for [values]: `$3::uuid[]`, bound as an array of [type]'s Java type. */
+    /**
+     * One array placeholder for [values] (e.g. `$3::uuid[]`), bound as an array of [type]'s Java
+     * type, or `null` - binding nothing - when the dialect does not bind arrays of [type].
+     */
     private fun bindArray(
         values: List<Any>,
         type: SqlType,
-    ): String {
+    ): String? {
+        val placeholder = syntax.arrayParameter(params.size + 1, type) ?: return null
         val array =
             java.lang.reflect.Array
                 .newInstance(type.javaType, values.size)
@@ -350,8 +366,24 @@ internal class SearchSqlWriter(
         }
 
         params += array
-        return $$"$$${params.size}::$${type.sqlName}[]"
+        return placeholder
     }
+
+    /** [conditions] combined with `AND`: one as is, several in parentheses, none always true. */
+    private fun all(conditions: List<String>): String =
+        when (conditions.size) {
+            0 -> syntax.alwaysTrue
+            1 -> conditions.single()
+            else -> conditions.joinToString(" AND ", "(", ")")
+        }
+
+    /** [conditions] combined with `OR`: one as is, several in parentheses, none never true. */
+    private fun any(conditions: List<String>): String =
+        when (conditions.size) {
+            0 -> syntax.alwaysFalse
+            1 -> conditions.single()
+            else -> conditions.joinToString(" OR ", "(", ")")
+        }
 
     private class SeekKey(
         val column: String,
@@ -361,22 +393,6 @@ internal class SearchSqlWriter(
         val neverNull: Boolean,
     )
 }
-
-/** [conditions] combined with `AND`: one as is, several in parentheses, none as `TRUE`. */
-private fun all(conditions: List<String>): String =
-    when (conditions.size) {
-        0 -> "TRUE"
-        1 -> conditions.single()
-        else -> conditions.joinToString(" AND ", "(", ")")
-    }
-
-/** [conditions] combined with `OR`: one as is, several in parentheses, none as `FALSE`. */
-private fun any(conditions: List<String>): String =
-    when (conditions.size) {
-        0 -> "FALSE"
-        1 -> conditions.single()
-        else -> conditions.joinToString(" OR ", "(", ")")
-    }
 
 private fun SortDirection.readAs(backwards: Boolean): SortDirection =
     when {

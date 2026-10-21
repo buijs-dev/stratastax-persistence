@@ -27,18 +27,12 @@ import dev.buijs.stratastax.persistence.reactive.spi.PersistenceDialect
 import dev.buijs.stratastax.persistence.reactive.spi.QueryExecutor
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.smallrye.mutiny.coroutines.awaitSuspending
-import io.vertx.core.json.JsonObject
 import io.vertx.mutiny.sqlclient.Row
 import io.vertx.mutiny.sqlclient.RowSet
 import io.vertx.mutiny.sqlclient.SqlClient
 import io.vertx.mutiny.sqlclient.Tuple
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
-import java.net.URI
-import java.net.URL
-import java.time.Instant
-import java.time.OffsetDateTime
-import java.time.ZoneOffset
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
@@ -62,7 +56,7 @@ private val log = KotlinLogging.logger {}
 @Suppress("SqlSourceToSinkFlow")
 public class VertxQueryExecutor(
     private val client: SqlClient,
-    private val dialect: PersistenceDialect = PostgresDialect,
+    private val dialect: PersistenceDialect,
     private val listeners: List<QueryExecutionListener> = emptyList(),
     private val transactionId: String? = null,
 ) : QueryExecutor {
@@ -126,7 +120,8 @@ public class VertxQueryExecutor(
     private suspend fun run(rendered: RenderedQuery): RowSet<Row> =
         exclusively {
             observed(rendered) {
-                client.preparedQuery(rendered.sql)
+                client
+                    .preparedQuery(rendered.sql)
                     .execute(tupleOf(rendered.parameters))
                     .awaitSuspending()
             }
@@ -150,7 +145,7 @@ public class VertxQueryExecutor(
         try {
             return block()
         } finally {
-            if (exclusive){
+            if (exclusive) {
                 running.decrementAndGet()
             }
         }
@@ -209,36 +204,9 @@ public class VertxQueryExecutor(
         }
     }
 
-    private fun tupleOf(parameters: List<Any?>): Tuple = Tuple.from(parameters.map(::bindValue))
-
-    /**
-     * A parameter as the Vert.x Postgres client encodes it: a [Map] becomes a [JsonObject] (a json or
-     * jsonb parameter), a [URI] or [URL] its text, an enum its name and an [Instant] an
-     * [OffsetDateTime] in UTC; what a text or timestamp column holds of them.
-     */
-    private fun bindValue(value: Any?): Any? =
-        when (value) {
-            is Map<*, *> -> {
-                JsonObject(
-                    value.entries.associate { (key, element) ->
-                        key.toString() to
-                            element
-                    },
-                )
-            }
-            is URI, is URL -> {
-                value.toString()
-            }
-            is Enum<*> -> {
-                value.name
-            }
-            is Instant -> {
-                value.atOffset(ZoneOffset.UTC)
-            }
-            else -> {
-                value
-            }
-        }
+    /** The parameters as [dialect] binds them, see [PersistenceDialect.bindValue]. */
+    private fun tupleOf(parameters: List<Any?>): Tuple =
+        Tuple.from(parameters.map(dialect::bindValue))
 }
 
 /**

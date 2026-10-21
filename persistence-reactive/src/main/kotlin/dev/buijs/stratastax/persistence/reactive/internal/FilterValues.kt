@@ -69,11 +69,21 @@ internal fun cursorValueFor(
     fieldName: String,
 ): Any? =
     when (element) {
-        is CursorElement.NullValue -> null
-        is CursorElement.StringValue -> textCursorValue(element.value, targetType, fieldName)
-        is CursorElement.NumberValue -> convertNumber(element.value, targetType)
-        is CursorElement.BooleanValue -> element.value
-        is CursorElement.TimestampValue -> convertDateTime(element.value, targetType)
+        is CursorElement.NullValue -> {
+            null
+        }
+        is CursorElement.StringValue -> {
+            textCursorValue(element.value, targetType, fieldName)
+        }
+        is CursorElement.NumberValue -> {
+            convertNumber(element.value, targetType)
+        }
+        is CursorElement.BooleanValue -> {
+            element.value
+        }
+        is CursorElement.TimestampValue -> {
+            convertDateTime(element.value, targetType)
+        }
         is CursorElement.ListValue -> {
             throw SearchException("Field '$fieldName' cannot be a cursor position")
         }

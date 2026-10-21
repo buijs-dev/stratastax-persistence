@@ -15,8 +15,6 @@ ambient-context = { group = "dev.buijs.stratastax", name = "ambient-context", ve
 entity = { group = "dev.buijs.stratastax", name = "entity", version.ref = "entity" }
 search-core = { group = "dev.buijs.stratastax", name = "search-core", version.ref = "search" }
 jackson3-databind = { group = "tools.jackson.core", name = "jackson-databind", version.ref = "jackson3" }
+mutiny-vertx-sql-client = { group = "io.smallrye.reactive", name = "smallrye-mutiny-vertx-sql-client", version.ref = "mutiny-vertx" }
 mutiny-vertx-pg-client = { group = "io.smallrye.reactive", name = "smallrye-mutiny-vertx-pg-client", version.ref = "mutiny-vertx" }
-mutiny-vertx-core = { group = "io.smallrye.reactive", name = "smallrye-mutiny-vertx-core", version.ref = "mutiny-vertx" }
-vertx-pg-client = { group = "io.vertx", name = "vertx-pg-client", version.ref = "vertx" }
-vertx-sql-client = { group = "io.vertx", name = "vertx-sql-client", version.ref = "vertx" }
 postgresql = { group = "org.postgresql", name = "postgresql", version.ref = "postgresql" }

@@ -25,7 +25,7 @@ classes get an `AmbientQueryExecutor`: for each statement, it looks in the calli
 context for a running transaction, and falls back to the connection pool when there is none.
 
 ```kotlin
-val transactional = VertxTransactionalExecutor(pool)
+val transactional = VertxTransactionalExecutor(pool, PostgresDialect)
 val queries = transactional.ambientQueryExecutor()   // give this to the access classes
 ```
 
@@ -117,7 +117,7 @@ In Quarkus, code in the block may need request-scoped beans. Then pass a dispatc
 carries the request context:
 
 ```kotlin
-VertxTransactionalExecutor(pool, dispatcher = managedExecutor.asCoroutineDispatcher())
+VertxTransactionalExecutor(pool, PostgresDialect, dispatcher = managedExecutor.asCoroutineDispatcher())
 ```
 
 ## Batches

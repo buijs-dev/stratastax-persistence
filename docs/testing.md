@@ -38,7 +38,7 @@ class PlaysetQueriesTest {
     }
 
     private val recorder = QueryExecutionRecorder()
-    private val transactional = VertxTransactionalExecutor(pool, listeners = listOf(recorder))
+    private val transactional = VertxTransactionalExecutor(pool, PostgresDialect, listeners = listOf(recorder))
     private val harness = PersistenceTestHarness(recorder, database.planAnalyzer())
 }
 ```

@@ -44,9 +44,9 @@ import kotlin.coroutines.CoroutineContext
  * so every [listeners] entry sees the complete statement sequence under one transaction id.
  *
  * A call made while a transaction of this executor runs, with
- * [TransactionPropagation.REQUIRED], joins it inside a `SAVEPOINT`: Postgres refuses every further
- * statement of a transaction in which one failed, so the savepoint is what lets a caller catch a
- * failed nested call and carry on. [TransactionPropagation.REQUIRES_NEW] always takes a new
+ * [TransactionPropagation.REQUIRED], joins it inside a `SAVEPOINT`: a database such as Postgres
+ * refuses every further statement of a transaction in which one failed, so the savepoint is what
+ * lets a caller catch a failed nested call and carry on. [TransactionPropagation.REQUIRES_NEW] always takes a new
  * connection.
  *
  * Plain `BEGIN`/`COMMIT` statements are used rather than Vert.x's `Pool.withTransaction`, which
@@ -58,7 +58,7 @@ import kotlin.coroutines.CoroutineContext
  */
 public class VertxTransactionalExecutor(
     private val pool: Pool,
-    private val dialect: PersistenceDialect = PostgresDialect,
+    private val dialect: PersistenceDialect,
     private val listeners: List<QueryExecutionListener> = emptyList(),
     private val dispatcher: CoroutineContext = Dispatchers.Default,
 ) : TransactionalExecutor {
@@ -70,8 +70,7 @@ public class VertxTransactionalExecutor(
     public fun ambientQueryExecutor(): QueryExecutor =
         AmbientQueryExecutor(pool, VertxQueryExecutor(pool, dialect, listeners))
 
-    override suspend fun isInTransaction(): Boolean =
-        currentTransaction(pool) != null
+    override suspend fun isInTransaction(): Boolean = currentTransaction(pool) != null
 
     override suspend fun <T> withTransaction(
         options: TransactionOptions,
@@ -107,7 +106,7 @@ public class VertxTransactionalExecutor(
                 ActiveTransaction(
                     owner = pool,
                     executor = executor,
-                    readOnly = options.readOnly
+                    readOnly = options.readOnly,
                 )
 
             val element =

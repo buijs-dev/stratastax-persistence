@@ -16,7 +16,7 @@
  */
 package dev.buijs.stratastax.persistence.test.api
 
-import dev.buijs.stratastax.persistence.reactive.api.PostgresDialect
+import dev.buijs.stratastax.persistence.postgres.api.PostgresDialect
 import dev.buijs.stratastax.persistence.reactive.api.VertxQueryExecutor
 import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
@@ -28,18 +28,16 @@ import kotlin.time.Duration.Companion.seconds
 
 /** The [scenario] DSL: every check runs, and a failing scenario throws its full report. */
 internal class ScenarioIntegrationTest {
+    private val recorder = QueryExecutionRecorder()
+    private val executor =
+        VertxQueryExecutor(TestDatabase.pool, PostgresDialect, listeners = listOf(recorder))
+    private val harness = PersistenceTestHarness(recorder, TestDatabase.postgres.planAnalyzer())
 
-    companion object {
-
+    private companion object {
         @BeforeAll
         @JvmStatic
         fun start() = TestDatabase.start()
     }
-
-    private val dsl = PostgresDialect.dsl()
-    private val recorder = QueryExecutionRecorder()
-    private val executor = VertxQueryExecutor(TestDatabase.pool, listeners = listOf(recorder))
-    private val harness = PersistenceTestHarness(recorder, TestDatabase.postgres.planAnalyzer())
 
     @BeforeEach
     fun seed() = TestDatabase.seed(20_000)
@@ -48,12 +46,12 @@ internal class ScenarioIntegrationTest {
     fun `a passing scenario returns its report`() =
         runBlocking<Unit> {
             // given
-            val lookup = dsl.selectFrom(PLAYSET).where(PLAYSET.NAME.eq("playset 7"))
+            val lookup = "SELECT id, name, payload FROM playset WHERE name = 'playset 7'"
 
             // when
             val report =
                 harness.scenario("find by name") {
-                    execute { executor.executeAndGetAll(lookup) }
+                    execute { executor.query(lookup) }
 
                     expect {
                         queries = 1
@@ -80,14 +78,14 @@ internal class ScenarioIntegrationTest {
     @Test
     fun `a failing scenario runs every check and throws the whole report`() {
         // given
-        val everything = dsl.selectFrom(PLAYSET)
+        val everything = "SELECT id, name, payload FROM playset"
 
         // when
         val thrown =
             catchThrowable {
                 runBlocking {
                     harness.scenario("read everything") {
-                        execute { executor.executeAndGetAll(everything) }
+                        execute { executor.query(everything) }
 
                         expect {
                             queries = 2

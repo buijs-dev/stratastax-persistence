@@ -17,7 +17,7 @@
 package dev.buijs.stratastax.persistence.reactive.internal
 
 import dev.buijs.stratastax.persistence.core.spi.UnknownColumnException
-import dev.buijs.stratastax.persistence.reactive.api.PostgresDialect
+import dev.buijs.stratastax.persistence.reactive.testfixtures.AnsiTestDialect
 import io.mockk.every
 import io.mockk.mockk
 import io.vertx.core.json.JsonArray
@@ -67,7 +67,7 @@ class VertxRowContextTest {
 
         every { row.getValue(any<Int>()) } answers { at(firstArg()) }
 
-        return VertxRowContext(row, ColumnIndex.of(row, PostgresDialect))
+        return VertxRowContext(row, ColumnIndex.of(row, AnsiTestDialect))
     }
 
     @Test
@@ -183,7 +183,7 @@ class VertxRowContextTest {
         every { row.size() } returns 1
         every { row.getColumnName(0) } returns "name"
         every { row.getLong(0) } throws ClassCastException("String cannot be cast to Long")
-        val context = VertxRowContext(row, ColumnIndex.of(row, PostgresDialect))
+        val context = VertxRowContext(row, ColumnIndex.of(row, AnsiTestDialect))
 
         // when
         val thrown = catchThrowable { context.longOrNull("name") }

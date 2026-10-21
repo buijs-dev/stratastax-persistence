@@ -157,9 +157,19 @@ private fun plainObject(json: JsonObject): Map<String, Any?> =
 
 private fun plain(value: Any?): Any? =
     when (value) {
-        is JsonObject -> plainObject(value)
-        is JsonArray -> value.list.map(::plain)
-        is Map<*, *> -> value.entries.associate { (key, element) -> key.toString() to plain(element) }
-        is List<*> -> value.map(::plain)
-        else -> value
+        is JsonObject -> {
+            plainObject(value)
+        }
+        is JsonArray -> {
+            value.list.map(::plain)
+        }
+        is Map<*, *> -> {
+            value.entries.associate { (key, element) -> key.toString() to plain(element) }
+        }
+        is List<*> -> {
+            value.map(::plain)
+        }
+        else -> {
+            value
+        }
     }

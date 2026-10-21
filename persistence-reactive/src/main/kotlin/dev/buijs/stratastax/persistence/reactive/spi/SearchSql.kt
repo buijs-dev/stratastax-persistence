@@ -35,6 +35,7 @@ import java.time.OffsetDateTime
  * [countQuery]). Only the filter, the sort, the cursor and the limit are rendered at runtime;
  * everything else is the generated text as is.
  *
+ * @property dialect the dialect the fragments are written for, and the runtime parts rendered in.
  * @property select the read projection without a condition: `SELECT <columns> FROM <table> <joins>`.
  * @property countSelect `SELECT count(*) FROM <table>`, without joins.
  * @property fields every searchable field by name.
@@ -42,6 +43,7 @@ import java.time.OffsetDateTime
  * @property lockClause the row-locking clause of [lockQuery], e.g. `FOR UPDATE OF playset`.
  */
 public class SearchSql(
+    public val dialect: PersistenceDialect,
     public val select: String,
     public val countSelect: String,
     override val fields: Map<String, SearchField>,
@@ -106,32 +108,31 @@ public sealed interface SearchTarget {
 
 /**
  * The SQL type of a searchable column: the Java type filter and cursor values are converted to
- * ([javaType]), and the cast their parameter gets ([sqlName]).
+ * ([javaType]), and the name a dialect writes it with ([sqlName]), e.g. in a cast `$1::uuid`.
+ *
+ * The constants are the common types; a dialect with other column types declares its own.
  */
-public enum class SqlType(
-    public val sqlName: String,
-    public val javaType: Class<*>,
+public data class SqlType(
+    val sqlName: String,
+    val javaType: Class<*>,
 ) {
-    UUID("uuid", java.util.UUID::class.java),
-    TEXT("text", String::class.java),
-    VARCHAR("varchar", String::class.java),
-    SMALLINT("smallint", Short::class.javaObjectType),
-    INTEGER("integer", Int::class.javaObjectType),
-    BIGINT("bigint", Long::class.javaObjectType),
-    NUMERIC("numeric", BigDecimal::class.java),
-    BOOLEAN("boolean", Boolean::class.javaObjectType),
-    DATE("date", LocalDate::class.java),
-    TIMESTAMP("timestamp", LocalDateTime::class.java),
-    TIMESTAMPTZ("timestamptz", OffsetDateTime::class.java),
-    JSONB("jsonb", Map::class.java),
-    ;
-
-    /** Whether several values are bound as one array (`= ANY($1::uuid[])`) instead of an `IN` list. */
-    public val bindsAsArray: Boolean
-        get() = this in setOf(UUID, TEXT, VARCHAR, INTEGER, BIGINT)
+    public companion object {
+        public val UUID: SqlType = SqlType("uuid", java.util.UUID::class.java)
+        public val TEXT: SqlType = SqlType("text", String::class.java)
+        public val VARCHAR: SqlType = SqlType("varchar", String::class.java)
+        public val SMALLINT: SqlType = SqlType("smallint", Short::class.javaObjectType)
+        public val INTEGER: SqlType = SqlType("integer", Int::class.javaObjectType)
+        public val BIGINT: SqlType = SqlType("bigint", Long::class.javaObjectType)
+        public val NUMERIC: SqlType = SqlType("numeric", BigDecimal::class.java)
+        public val BOOLEAN: SqlType = SqlType("boolean", Boolean::class.javaObjectType)
+        public val DATE: SqlType = SqlType("date", LocalDate::class.java)
+        public val TIMESTAMP: SqlType = SqlType("timestamp", LocalDateTime::class.java)
+        public val TIMESTAMPTZ: SqlType = SqlType("timestamptz", OffsetDateTime::class.java)
+        public val JSONB: SqlType = SqlType("jsonb", Map::class.java)
+    }
 }
 
-/** SQL text and the parameters of its placeholders, in order: `$1` is `params[0]`. */
+/** SQL text and the parameters of its placeholders, in order: the first is `params[0]`. */
 public data class SqlStatement(
     val sql: String,
     val params: List<Any?> = emptyList(),
@@ -177,7 +178,7 @@ public fun SearchSql.listQuery(
 
 /**
  * Like [pageQuery], but locking the returned root rows with [SearchSql.lockClause] until the
- * surrounding transaction ends (`SKIP LOCKED` with [skipLocked]) and without the look-ahead row
+ * surrounding transaction ends (skipping locked rows with [skipLocked]) and without the look-ahead row
  * (it would be locked too).
  *
  * @throws IllegalStateException when the entity has no [SearchSql.lockClause].
@@ -194,7 +195,7 @@ public fun SearchSql.lockQuery(
             conditions(query, scope = null) + listOfNotNull(seek(query)),
             orderBy(query),
             limit(query.limit),
-            if (skipLocked) "$lock SKIP LOCKED" else lock,
+            if (skipLocked) dialect.search.skipLocked(lock) else lock,
         )
     }
 }

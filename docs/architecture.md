@@ -23,7 +23,9 @@ persistence-core       the API services use; no framework
    ▲        ▲
    │        └── persistence-csv       reads CSV files with the same row mappers
    │
-persistence-reactive   runs the SQL on PostgreSQL with Vert.x
+persistence-reactive   runs the SQL with Vert.x, through a dialect
+   ▲
+   └── persistence-postgres   the PostgreSQL dialect (others can live in their own repository)
 
 persistence-test       test kit: assert on the SQL that ran (test scope only)
 ```
@@ -31,12 +33,13 @@ persistence-test       test kit: assert on the SQL that ran (test scope only)
 | Module                 | You use it for                                                                                                                                                      |
 |------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `persistence-core`     | The contracts a service depends on: `ReadAccess`, `CreateAccess`, `UpdateAccess`, `DeleteAccess`, `UnitOfWork`, `BatchResult` and the exceptions. No database code. |
-| `persistence-reactive` | Running statements on PostgreSQL, transactions, rendering searches, and the helpers generated write code uses.                                                      |
+| `persistence-reactive` | Running statements, transactions, rendering searches, and the helpers generated write code uses. Database-neutral: the SQL syntax comes from a `PersistenceDialect`. |
+| `persistence-postgres` | `PostgresDialect`, the PostgreSQL dialect the application wires into the executors and generated code puts in each `SearchSql`.                                     |
 | `persistence-csv`      | Importing CSV files.                                                                                                                                                |
 | `persistence-test`     | Testing persistence code against a real PostgreSQL.                                                                                                                 |
 
 A service only needs `persistence-core`. The application's wiring and the generated access classes
-are the only code that touches `persistence-reactive`. That keeps services free of driver details,
+are the only code that touches `persistence-reactive` and `persistence-postgres`. That keeps services free of driver details,
 and makes them easy to test with a fake `ReadAccess`.
 
 ## Three packages per module
@@ -45,7 +48,7 @@ Every module splits its code the same way, so you can tell from an import what k
 | Package    | Meant for                                                                 | Examples                                                                 |
 |------------|---------------------------------------------------------------------------|--------------------------------------------------------------------------|
 | `api`      | code that **uses** the library                                            | `ReadAccess`, `UnitOfWork`, `VertxTransactionalExecutor`, `CsvRowReader` |
-| `spi`      | code that **implements or extends** it: generated code, mappers, dialects | `QueryExecutor`, `RowMapper`, `SearchSql`, `PersistenceDialect`          |
+| `spi`      | code that **implements or extends** it: generated code, mappers, dialects | `QueryExecutor`, `RowMapper`, `SearchSql`, `PersistenceDialect`, `SearchSyntax` |
 | `internal` | the module itself; invisible outside it                                   | `SearchSqlWriter`, `VertxRowContext`                                     |
 
 The modules are compiled in Kotlin's explicit API mode, so nothing becomes public by accident. The

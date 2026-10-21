@@ -16,10 +16,9 @@
  */
 package dev.buijs.stratastax.persistence.test.api
 
-import dev.buijs.stratastax.persistence.reactive.api.PostgresDialect
+import dev.buijs.stratastax.persistence.core.spi.RenderedQuery
 import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
-import org.jooq.JSONB
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -37,22 +36,23 @@ internal class PostgresQueryPlanAnalyzerIntegrationTest {
         fun start() = TestDatabase.start()
     }
 
-    private val dsl = PostgresDialect.dsl()
     private val analyzer = TestDatabase.postgres.planAnalyzer()
 
     @BeforeEach
     fun seed() = TestDatabase.seed(10)
 
-    private fun analyze(query: org.jooq.Query) =
-        runBlocking { analyzer.analyze(PostgresDialect.renderer.render(query)) }
+    private fun analyze(
+        sql: String,
+        params: List<Any?> = emptyList(),
+    ) = runBlocking { analyzer.analyze(RenderedQuery(sql, params)) }
 
     @Test
     fun `parses the plan tree of a query`() {
         // given
-        val query = dsl.selectFrom(PLAYSET).where(PLAYSET.ID.eq(1L))
+        val query = "SELECT id, name, payload FROM playset WHERE id = \$1::bigint"
 
         // when
-        val plan = analyze(query)
+        val plan = analyze(query, listOf(1L))
 
         // then
         assertThat(plan.root.relationName).isEqualTo("playset")
@@ -66,13 +66,13 @@ internal class PostgresQueryPlanAnalyzerIntegrationTest {
         // given
         val writes =
             listOf(
-                dsl.insertInto(PLAYSET).set(PLAYSET.NAME, "analyzed"),
-                dsl.update(PLAYSET).set(PLAYSET.NAME, "analyzed"),
-                dsl.deleteFrom(PLAYSET),
+                "INSERT INTO playset (name) VALUES ('analyzed')",
+                "UPDATE playset SET name = 'analyzed'",
+                "DELETE FROM playset",
             )
 
         // when
-        writes.forEach(::analyze)
+        writes.forEach { analyze(it) }
 
         // then
         assertThat(TestDatabase.postgres.queryForLong("SELECT count(*) FROM playset")).isEqualTo(10)
@@ -86,17 +86,15 @@ internal class PostgresQueryPlanAnalyzerIntegrationTest {
     @Test
     fun `binds JSON and array parameters`() {
         // given
-        val json = dsl.selectFrom(PLAYSET).where(PLAYSET.PAYLOAD.eq(JSONB.valueOf("""{"a": 1}""")))
-        val array =
-            dsl.selectFrom(PLAYSET).where(
-                PLAYSET.ID.eq(
-                    org.jooq.impl.DSL
-                        .any(1L, 2L, 3L),
-                ),
-            )
+        val json = "SELECT id FROM playset WHERE payload = \$1::jsonb"
+        val array = "SELECT id FROM playset WHERE id = ANY(\$1::bigint[])"
 
         // when
-        val plans = listOf(analyze(json), analyze(array))
+        val plans =
+            listOf(
+                analyze(json, listOf(mapOf("a" to 1))),
+                analyze(array, listOf(arrayOf(1L, 2L, 3L))),
+            )
 
         // then
         assertThat(plans.map { it.root.relationName }).containsOnly("playset")

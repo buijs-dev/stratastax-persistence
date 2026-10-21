@@ -17,7 +17,7 @@
 package dev.buijs.stratastax.persistence.test.api
 
 import dev.buijs.stratastax.persistence.core.spi.QueryOperation
-import dev.buijs.stratastax.persistence.reactive.api.PostgresDialect
+import dev.buijs.stratastax.persistence.postgres.api.PostgresDialect
 import dev.buijs.stratastax.persistence.reactive.api.VertxQueryExecutor
 import dev.buijs.stratastax.persistence.reactive.api.VertxTransactionalExecutor
 import kotlinx.coroutines.runBlocking
@@ -41,11 +41,11 @@ internal class PersistenceTestHarnessIntegrationTest {
         fun start() = TestDatabase.start()
     }
 
-    private val dsl = PostgresDialect.dsl()
     private val recorder = QueryExecutionRecorder()
-    private val executor = VertxQueryExecutor(TestDatabase.pool, listeners = listOf(recorder))
+    private val executor =
+        VertxQueryExecutor(TestDatabase.pool, PostgresDialect, listeners = listOf(recorder))
     private val transactional =
-        VertxTransactionalExecutor(TestDatabase.pool, listeners = listOf(recorder))
+        VertxTransactionalExecutor(TestDatabase.pool, PostgresDialect, listeners = listOf(recorder))
     private val harness = PersistenceTestHarness(recorder)
 
     @BeforeEach
@@ -55,12 +55,15 @@ internal class PersistenceTestHarnessIntegrationTest {
     fun `captures the block's result and the statements it caused, and only those`() =
         runBlocking<Unit> {
             // given
-            executor.executeAndGetAll(dsl.selectFrom(PLAYSET))
+            executor.query("SELECT id, name, payload FROM playset")
 
             // when
             val execution =
                 harness.execute {
-                    executor.executeAndGetFirst(dsl.selectFrom(PLAYSET).where(PLAYSET.ID.eq(1L)))
+                    executor.queryFirst(
+                        "SELECT id, name, payload FROM playset WHERE id = \$1::bigint",
+                        listOf(1L),
+                    )
                 }
 
             // then
@@ -74,10 +77,10 @@ internal class PersistenceTestHarnessIntegrationTest {
     fun `captures what the block threw instead of throwing it`() =
         runBlocking<Unit> {
             // given
-            val failing = dsl.resultQuery("select * from does_not_exist")
+            val failing = "SELECT * FROM does_not_exist"
 
             // when
-            val execution = harness.execute { executor.executeAndGetAll(failing) }
+            val execution = harness.execute { executor.query(failing) }
 
             // then
             assertThat(execution.result).isNull()
@@ -99,15 +102,13 @@ internal class PersistenceTestHarnessIntegrationTest {
     fun `splits data statements from transaction control`() =
         runBlocking<Unit> {
             // given
-            val select = dsl.selectFrom(PLAYSET)
+            val select = "SELECT id, name, payload FROM playset"
 
             // when
             val execution =
                 harness.execute {
                     transactional.withTransaction {
-                        it.executeAndGetAll(
-                            select,
-                        )
+                        it.query(select)
                     }
                 }
 
@@ -125,7 +126,12 @@ internal class PersistenceTestHarnessIntegrationTest {
     fun `a wrong query count fails listing what ran`() =
         runBlocking<Unit> {
             // given
-            val execution = harness.execute { executor.executeAndGetAll(dsl.selectFrom(PLAYSET)) }
+            val execution =
+                harness.execute {
+                    executor.query(
+                        "SELECT id, name, payload FROM playset",
+                    )
+                }
 
             // when
             val thrown = catchThrowable { execution.assertQueryCount(2) }
@@ -134,22 +140,20 @@ internal class PersistenceTestHarnessIntegrationTest {
             assertThat(thrown)
                 .isInstanceOf(AssertionError::class.java)
                 .hasMessageContaining("Expected 2 queries but 1 ran")
-                .hasMessageContaining("SELECT: select")
+                .hasMessageContaining("SELECT: SELECT id, name, payload FROM playset")
         }
 
     @Test
     fun `the same query repeated past the threshold is flagged as N+1`() =
         runBlocking<Unit> {
             // given
-            val perRow = { id: Long -> dsl.selectFrom(PLAYSET).where(PLAYSET.ID.eq(id)) }
+            val perRow = "SELECT id, name, payload FROM playset WHERE id = \$1::bigint"
 
             // when
             val execution =
                 harness.execute {
                     (1L..3L).map {
-                        executor.executeAndGetFirst(
-                            perRow(it),
-                        )
+                        executor.queryFirst(perRow, listOf(it))
                     }
                 }
 
@@ -169,7 +173,11 @@ internal class PersistenceTestHarnessIntegrationTest {
             // when
             val execution =
                 analyzing.execute {
-                    transactional.withTransaction { it.executeAndGetAll(dsl.selectFrom(PLAYSET)) }
+                    transactional.withTransaction {
+                        it.query(
+                            "SELECT id, name, payload FROM playset",
+                        )
+                    }
                 }
 
             // then

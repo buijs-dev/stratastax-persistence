@@ -50,15 +50,14 @@ public fun <T> TestExecution<T>.assertQueryCount(expected: Int): TestExecution<T
 public fun <T> TestExecution<T>.assertNoNPlusOne(threshold: Int = 3): TestExecution<T> {
     val repeated =
         dataQueries.groupBy { it.execution.query.sql }.filterValues {
-            it.size >=
-                threshold
+            it.size >= threshold
         }
 
     if (repeated.isNotEmpty()) {
         val report =
-            repeated.entries.joinToString(
-                "\n\n",
-            ) { (sql, occurrences) -> "Repeated query (${occurrences.size}x):\n    $sql" }
+            repeated.entries.joinToString("\n\n") { (sql, occurrences) ->
+                "Repeated query (${occurrences.size}x):\n    $sql"
+            }
 
         throw AssertionError(
             "Potential N+1 query detected (${dataQueries.size} queries in total)\n\n$report\n\n" +
@@ -93,9 +92,7 @@ public fun <T> TestExecution<T>.assertUsesIndex(name: String): TestExecution<T> 
     if (name !in used) {
         throw AssertionError(
             "Expected index '$name' to be used, but it wasn't. Indexes used: ${used.ifEmpty {
-                setOf(
-                    "none",
-                )
+                setOf("none")
             }.joinToString()}",
         )
     }
@@ -111,9 +108,9 @@ public fun <T> TestExecution<T>.assertMaxRowsRead(max: Long): TestExecution<T> {
     if (rowsRead > max) {
         throw AssertionError(
             "Expected at most $max rows read, but $rowsRead were:\n" +
-                plans.joinToString(
-                    "\n",
-                ) { (query, plan) -> "  ${plan.rowsRead()} - ${query.execution.query.sql}" },
+                plans.joinToString("\n") { (query, plan) ->
+                    "  ${plan.rowsRead()} - ${query.execution.query.sql}"
+                },
         )
     }
 
@@ -140,9 +137,9 @@ public fun <T> TestExecution<T>.assertExecutionTimeBelow(max: Duration): TestExe
     if (offenders.isNotEmpty()) {
         throw AssertionError(
             "Expected execution time below $max:\n" +
-                offenders.joinToString(
-                    "\n",
-                ) { (query, plan) -> "  ${plan.executionTime} - ${query.execution.query.sql}" },
+                offenders.joinToString("\n") { (query, plan) ->
+                    "  ${plan.executionTime} - ${query.execution.query.sql}"
+                },
         )
     }
 

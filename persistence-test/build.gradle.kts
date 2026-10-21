@@ -25,5 +25,5 @@ dependencies {
     implementation(stratastax.jackson3.databind)
 
     testImplementation(libs.bundles.test)
-    testImplementation(project(":persistence-reactive"))
+    testImplementation(project(":persistence-postgres"))
 }

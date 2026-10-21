@@ -14,9 +14,13 @@ Repositories are generated as plain, literal SQL; this library supplies the runt
   through small access interfaces and group writes in a unit of work, without knowing which
   database or driver sits underneath. Failures surface as typed exceptions that carry their
   details, and the SPI lets a backend map rows and report executed queries.
-- **Reactive PostgreSQL execution** (`persistence-reactive`). Runs the generated SQL on Vert.x,
-  inside or outside a transaction, and sends batches in a single round trip. Common Kotlin types
+- **Reactive execution** (`persistence-reactive`). Runs the generated SQL on Vert.x, inside or
+  outside a transaction, and sends batches in a single round trip. Common Kotlin types
   (JSON maps, URIs, enums, instants) are bound without extra code.
+- **Pluggable SQL dialects.** Everything database-specific - transaction statements, placeholders,
+  the syntax of a search and parameter binding - sits behind `PersistenceDialect` and
+  `SearchSyntax`, so a dialect can be written in a module of its own, also outside this repository.
+  PostgreSQL is `PostgresDialect` in `persistence-postgres`.
 - **Search with keyset pagination.** Filtering, sorting, cursor-based paging and row locking are
   composed from generated SQL fragments, so search queries stay predictable and index-friendly.
 - **Safe writes.** Shared building blocks for the checks every write needs: optimistic versioning,
@@ -35,7 +39,7 @@ Repositories are generated as plain, literal SQL; this library supplies the runt
 ### Notes
 - Explicit API mode and an API dump (`./gradlew updateKotlinAbi`) in every module.
 - JSON is handled with Jackson 3 (`tools.jackson`); no Jackson 2 runtime comes in through this
-  library, except Vert.x 4's own `jackson-core` in `persistence-reactive`.
+  library, except Vert.x 4's own `jackson-core` in `persistence-reactive` and `persistence-postgres`.
 - The Vert.x, Mutiny and PostgreSQL driver versions are pinned to the ones of Quarkus 3.38.
 
 See [README.md](https://github.com/buijs-dev/stratastax-persistence/blob/main/README.md) and

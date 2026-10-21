@@ -15,10 +15,11 @@ dependencies {
  * Jackson 3 (tools.jackson) is this repository's only JSON library. A Jackson 2 runtime
  * (com.fasterxml.jackson.core:jackson-core/-databind) must never come in through a dependency
  * of our own - jackson-annotations is shared by Jackson 2 and 3 by design and allowed.
- * persistence-reactive is the one exception for jackson-core: Vert.x 4 itself depends on it.
+ * persistence-reactive and persistence-postgres are the exception for jackson-core: Vert.x 4 itself
+ * depends on it.
  */
 val jackson2Runtime = setOf("jackson-core", "jackson-databind")
-val vertxProjects = setOf(":persistence-reactive")
+val vertxProjects = setOf(":persistence-reactive", ":persistence-postgres")
 
 val checkNoJackson2 by tasks.registering {
     group = "verification"

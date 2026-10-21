@@ -6,12 +6,6 @@ public final class dev/buijs/stratastax/persistence/reactive/api/AmbientQueryExe
 	public fun queryFirst (Ljava/lang/String;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
-public final class dev/buijs/stratastax/persistence/reactive/api/PostgresDialect : dev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect {
-	public static final field INSTANCE Ldev/buijs/stratastax/persistence/reactive/api/PostgresDialect;
-	public fun columnKey (Ljava/lang/String;)Ljava/lang/String;
-	public fun getTransactions ()Ldev/buijs/stratastax/persistence/reactive/spi/TransactionSql;
-}
-
 public final class dev/buijs/stratastax/persistence/reactive/api/VertxQueryExecutor : dev/buijs/stratastax/persistence/reactive/spi/QueryExecutor {
 	public fun <init> (Lio/vertx/mutiny/sqlclient/SqlClient;Ldev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect;Ljava/util/List;Ljava/lang/String;)V
 	public synthetic fun <init> (Lio/vertx/mutiny/sqlclient/SqlClient;Ldev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect;Ljava/util/List;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -39,8 +33,14 @@ public final class dev/buijs/stratastax/persistence/reactive/spi/ChildDiff {
 }
 
 public abstract interface class dev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect {
+	public fun bindValue (Ljava/lang/Object;)Ljava/lang/Object;
 	public abstract fun columnKey (Ljava/lang/String;)Ljava/lang/String;
+	public abstract fun getSearch ()Ldev/buijs/stratastax/persistence/reactive/spi/SearchSyntax;
 	public abstract fun getTransactions ()Ldev/buijs/stratastax/persistence/reactive/spi/TransactionSql;
+}
+
+public final class dev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect$DefaultImpls {
+	public static fun bindValue (Ldev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect;Ljava/lang/Object;)Ljava/lang/Object;
 }
 
 public abstract interface class dev/buijs/stratastax/persistence/reactive/spi/QueryExecutor {
@@ -77,12 +77,13 @@ public final class dev/buijs/stratastax/persistence/reactive/spi/SearchField {
 }
 
 public final class dev/buijs/stratastax/persistence/reactive/spi/SearchSql : dev/buijs/stratastax/entity/core/spi/FieldMapping {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/List;Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/List;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ldev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/List;Ljava/lang/String;)V
+	public synthetic fun <init> (Ldev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/List;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun field (Ljava/lang/String;)Ldev/buijs/stratastax/persistence/reactive/spi/SearchField;
 	public synthetic fun field (Ljava/lang/String;)Ljava/lang/Object;
 	public final fun getCountSelect ()Ljava/lang/String;
 	public final fun getDefaultConditions ()Ljava/util/List;
+	public final fun getDialect ()Ldev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect;
 	public fun getFields ()Ljava/util/Map;
 	public final fun getLockClause ()Ljava/lang/String;
 	public final fun getSelect ()Ljava/lang/String;
@@ -99,6 +100,31 @@ public final class dev/buijs/stratastax/persistence/reactive/spi/SearchSqlKt {
 	public static synthetic fun pageQuery$default (Ldev/buijs/stratastax/persistence/reactive/spi/SearchSql;Ldev/buijs/stratastax/search/core/api/SearchQuery;Ldev/buijs/stratastax/search/core/api/FilterExpression;Ljava/lang/String;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/reactive/spi/SqlStatement;
 	public static final fun readAll (Ldev/buijs/stratastax/persistence/reactive/spi/QueryExecutor;Ldev/buijs/stratastax/persistence/reactive/spi/SqlStatement;Ldev/buijs/stratastax/search/core/api/SearchQuery;Ldev/buijs/stratastax/persistence/core/spi/RowMapper;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun readPage (Ldev/buijs/stratastax/persistence/reactive/spi/QueryExecutor;Ldev/buijs/stratastax/persistence/reactive/spi/SqlStatement;Ldev/buijs/stratastax/search/core/api/SearchQuery;Ldev/buijs/stratastax/persistence/core/spi/RowMapper;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public abstract interface class dev/buijs/stratastax/persistence/reactive/spi/SearchSyntax {
+	public fun anyOf (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+	public fun arrayParameter (ILdev/buijs/stratastax/persistence/reactive/spi/SqlType;)Ljava/lang/String;
+	public fun getAlwaysFalse ()Ljava/lang/String;
+	public fun getAlwaysTrue ()Ljava/lang/String;
+	public fun getRowValueComparison ()Z
+	public abstract fun like (Ljava/lang/String;Ljava/lang/String;Z)Ljava/lang/String;
+	public fun limit (Ljava/lang/String;)Ljava/lang/String;
+	public fun noneOf (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+	public abstract fun orderBy (Ljava/lang/String;Ldev/buijs/stratastax/entity/core/api/SortDirection;)Ljava/lang/String;
+	public abstract fun parameter (ILdev/buijs/stratastax/persistence/reactive/spi/SqlType;)Ljava/lang/String;
+	public fun skipLocked (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class dev/buijs/stratastax/persistence/reactive/spi/SearchSyntax$DefaultImpls {
+	public static fun anyOf (Ldev/buijs/stratastax/persistence/reactive/spi/SearchSyntax;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+	public static fun arrayParameter (Ldev/buijs/stratastax/persistence/reactive/spi/SearchSyntax;ILdev/buijs/stratastax/persistence/reactive/spi/SqlType;)Ljava/lang/String;
+	public static fun getAlwaysFalse (Ldev/buijs/stratastax/persistence/reactive/spi/SearchSyntax;)Ljava/lang/String;
+	public static fun getAlwaysTrue (Ldev/buijs/stratastax/persistence/reactive/spi/SearchSyntax;)Ljava/lang/String;
+	public static fun getRowValueComparison (Ldev/buijs/stratastax/persistence/reactive/spi/SearchSyntax;)Z
+	public static fun limit (Ldev/buijs/stratastax/persistence/reactive/spi/SearchSyntax;Ljava/lang/String;)Ljava/lang/String;
+	public static fun noneOf (Ldev/buijs/stratastax/persistence/reactive/spi/SearchSyntax;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+	public static fun skipLocked (Ldev/buijs/stratastax/persistence/reactive/spi/SearchSyntax;Ljava/lang/String;)Ljava/lang/String;
 }
 
 public abstract interface class dev/buijs/stratastax/persistence/reactive/spi/SearchTarget {
@@ -150,25 +176,33 @@ public final class dev/buijs/stratastax/persistence/reactive/spi/SqlStatement {
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class dev/buijs/stratastax/persistence/reactive/spi/SqlType : java/lang/Enum {
-	public static final field BIGINT Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
-	public static final field BOOLEAN Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
-	public static final field DATE Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
-	public static final field INTEGER Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
-	public static final field JSONB Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
-	public static final field NUMERIC Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
-	public static final field SMALLINT Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
-	public static final field TEXT Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
-	public static final field TIMESTAMP Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
-	public static final field TIMESTAMPTZ Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
-	public static final field UUID Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
-	public static final field VARCHAR Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
-	public final fun getBindsAsArray ()Z
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+public final class dev/buijs/stratastax/persistence/reactive/spi/SqlType {
+	public static final field Companion Ldev/buijs/stratastax/persistence/reactive/spi/SqlType$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/Class;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/Class;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Class;)Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
+	public static synthetic fun copy$default (Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;Ljava/lang/String;Ljava/lang/Class;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
+	public fun equals (Ljava/lang/Object;)Z
 	public final fun getJavaType ()Ljava/lang/Class;
 	public final fun getSqlName ()Ljava/lang/String;
-	public static fun valueOf (Ljava/lang/String;)Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
-	public static fun values ()[Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/buijs/stratastax/persistence/reactive/spi/SqlType$Companion {
+	public final fun getBIGINT ()Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
+	public final fun getBOOLEAN ()Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
+	public final fun getDATE ()Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
+	public final fun getINTEGER ()Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
+	public final fun getJSONB ()Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
+	public final fun getNUMERIC ()Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
+	public final fun getSMALLINT ()Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
+	public final fun getTEXT ()Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
+	public final fun getTIMESTAMP ()Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
+	public final fun getTIMESTAMPTZ ()Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
+	public final fun getUUID ()Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
+	public final fun getVARCHAR ()Ldev/buijs/stratastax/persistence/reactive/spi/SqlType;
 }
 
 public final class dev/buijs/stratastax/persistence/reactive/spi/SqlVersion {

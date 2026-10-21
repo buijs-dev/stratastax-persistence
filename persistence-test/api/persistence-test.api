@@ -1,0 +1,216 @@
+public final class dev/buijs/stratastax/persistence/test/api/AssertionsKt {
+	public static final fun assertCommitted (Ldev/buijs/stratastax/persistence/test/api/TestExecution;)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public static final fun assertExecutionTimeBelow-HG0u8IE (Ldev/buijs/stratastax/persistence/test/api/TestExecution;J)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public static final fun assertMaxBufferReads (Ldev/buijs/stratastax/persistence/test/api/TestExecution;J)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public static final fun assertMaxRowsRead (Ldev/buijs/stratastax/persistence/test/api/TestExecution;J)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public static final fun assertNoFailedQueries (Ldev/buijs/stratastax/persistence/test/api/TestExecution;)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public static final fun assertNoNPlusOne (Ldev/buijs/stratastax/persistence/test/api/TestExecution;I)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public static synthetic fun assertNoNPlusOne$default (Ldev/buijs/stratastax/persistence/test/api/TestExecution;IILjava/lang/Object;)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public static final fun assertNoSequentialScans (Ldev/buijs/stratastax/persistence/test/api/TestExecution;)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public static final fun assertQuery (Ldev/buijs/stratastax/persistence/test/api/TestExecution;Lkotlin/jvm/functions/Function1;)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public static final fun assertQueryCount (Ldev/buijs/stratastax/persistence/test/api/TestExecution;I)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public static final fun assertRolledBack (Ldev/buijs/stratastax/persistence/test/api/TestExecution;)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public static final fun assertSingleTransaction (Ldev/buijs/stratastax/persistence/test/api/TestExecution;)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public static final fun assertSuccessful (Ldev/buijs/stratastax/persistence/test/api/TestExecution;)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public static final fun assertUsesIndex (Ldev/buijs/stratastax/persistence/test/api/TestExecution;Ljava/lang/String;)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public static final fun describeStatements (Ljava/util/List;)Ljava/lang/String;
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/ExpectationBuilder {
+	public final fun getQueries ()Ljava/lang/Integer;
+	public final fun performance (Lkotlin/jvm/functions/Function1;)V
+	public final fun plan (Lkotlin/jvm/functions/Function1;)V
+	public final fun setQueries (Ljava/lang/Integer;)V
+	public final fun sql (Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/ExpectationOutcome {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Z
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;)Ldev/buijs/stratastax/persistence/test/api/ExpectationOutcome;
+	public static synthetic fun copy$default (Ldev/buijs/stratastax/persistence/test/api/ExpectationOutcome;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/test/api/ExpectationOutcome;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDetail ()Ljava/lang/String;
+	public final fun getGroup ()Ljava/lang/String;
+	public final fun getLabel ()Ljava/lang/String;
+	public final fun getPassed ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/ObservedQuery {
+	public fun <init> (Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;Ldev/buijs/stratastax/persistence/test/api/QueryPlan;)V
+	public synthetic fun <init> (Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;Ldev/buijs/stratastax/persistence/test/api/QueryPlan;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;
+	public final fun component2 ()Ldev/buijs/stratastax/persistence/test/api/QueryPlan;
+	public final fun copy (Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;Ldev/buijs/stratastax/persistence/test/api/QueryPlan;)Ldev/buijs/stratastax/persistence/test/api/ObservedQuery;
+	public static synthetic fun copy$default (Ldev/buijs/stratastax/persistence/test/api/ObservedQuery;Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;Ldev/buijs/stratastax/persistence/test/api/QueryPlan;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/test/api/ObservedQuery;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getExecution ()Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;
+	public final fun getPlan ()Ldev/buijs/stratastax/persistence/test/api/QueryPlan;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/PerformanceExpectationBuilder {
+	public final fun getMaxExecutionTime-FghU774 ()Lkotlin/time/Duration;
+	public final fun setMaxExecutionTime-BwNAW2A (Lkotlin/time/Duration;)V
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/PersistenceTestHarness {
+	public fun <init> (Ldev/buijs/stratastax/persistence/test/api/QueryExecutionRecorder;Ldev/buijs/stratastax/persistence/test/api/QueryPlanAnalyzer;)V
+	public synthetic fun <init> (Ldev/buijs/stratastax/persistence/test/api/QueryExecutionRecorder;Ldev/buijs/stratastax/persistence/test/api/QueryPlanAnalyzer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun execute (Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/PlanExpectationBuilder {
+	public final fun getMaxBufferReads ()Ljava/lang/Long;
+	public final fun getMaxRowsRead ()Ljava/lang/Long;
+	public final fun noSequentialScans ()V
+	public final fun setMaxBufferReads (Ljava/lang/Long;)V
+	public final fun setMaxRowsRead (Ljava/lang/Long;)V
+	public final fun usesIndex (Ljava/lang/String;)V
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/PlanNode {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;Ljava/util/List;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Ljava/util/List;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/Long;
+	public final fun component5 ()Ljava/lang/Long;
+	public final fun component6 ()Ljava/lang/Long;
+	public final fun component7 ()Ljava/lang/Long;
+	public final fun component8 ()Ljava/lang/Long;
+	public final fun component9 ()Ljava/lang/Long;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;Ljava/util/List;)Ldev/buijs/stratastax/persistence/test/api/PlanNode;
+	public static synthetic fun copy$default (Ldev/buijs/stratastax/persistence/test/api/PlanNode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;Ljava/util/List;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/test/api/PlanNode;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun flatten ()Ljava/util/List;
+	public final fun getActualLoops ()Ljava/lang/Long;
+	public final fun getActualRows ()Ljava/lang/Long;
+	public final fun getChildren ()Ljava/util/List;
+	public final fun getIndexName ()Ljava/lang/String;
+	public final fun getNodeType ()Ljava/lang/String;
+	public final fun getPlanRows ()Ljava/lang/Long;
+	public final fun getRelationName ()Ljava/lang/String;
+	public final fun getRowsRemovedByFilter ()Ljava/lang/Long;
+	public final fun getSharedHitBlocks ()Ljava/lang/Long;
+	public final fun getSharedReadBlocks ()Ljava/lang/Long;
+	public fun hashCode ()I
+	public final fun isSequentialScan ()Z
+	public final fun renderTree (Ljava/lang/String;)Ljava/lang/String;
+	public static synthetic fun renderTree$default (Ldev/buijs/stratastax/persistence/test/api/PlanNode;Ljava/lang/String;ILjava/lang/Object;)Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/PostgresQueryPlanAnalyzer : dev/buijs/stratastax/persistence/test/api/QueryPlanAnalyzer {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public fun analyze (Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/PostgresTestDatabase {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun enableStatementLogging ()V
+	public final fun executeDdl ([Ljava/lang/String;)V
+	public final fun getContainer ()Lorg/testcontainers/containers/PostgreSQLContainer;
+	public final fun getDatabaseName ()Ljava/lang/String;
+	public final fun getHost ()Ljava/lang/String;
+	public final fun getJdbcUrl ()Ljava/lang/String;
+	public final fun getPassword ()Ljava/lang/String;
+	public final fun getPort ()I
+	public final fun getReactiveUrl ()Ljava/lang/String;
+	public final fun getUsername ()Ljava/lang/String;
+	public final fun logs ()Ljava/lang/String;
+	public final fun planAnalyzer ()Ldev/buijs/stratastax/persistence/test/api/PostgresQueryPlanAnalyzer;
+	public final fun query (Ljava/lang/String;)Ljava/util/List;
+	public final fun queryForLong (Ljava/lang/String;)J
+	public final fun start ()V
+	public final fun stop ()V
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/QueryExecutionRecorder : dev/buijs/stratastax/persistence/core/spi/QueryExecutionListener {
+	public fun <init> ()V
+	public final fun clear ()V
+	public fun executed (Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun executions ()Ljava/util/List;
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/QueryPlan {
+	public synthetic fun <init> (JJLdev/buijs/stratastax/persistence/test/api/PlanNode;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun bufferReads ()J
+	public final fun component1-UwyO8pc ()J
+	public final fun component2-UwyO8pc ()J
+	public final fun component3 ()Ldev/buijs/stratastax/persistence/test/api/PlanNode;
+	public final fun copy-NqJ4yvY (JJLdev/buijs/stratastax/persistence/test/api/PlanNode;)Ldev/buijs/stratastax/persistence/test/api/QueryPlan;
+	public static synthetic fun copy-NqJ4yvY$default (Ldev/buijs/stratastax/persistence/test/api/QueryPlan;JJLdev/buijs/stratastax/persistence/test/api/PlanNode;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/test/api/QueryPlan;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun flatten ()Ljava/util/List;
+	public final fun getExecutionTime-UwyO8pc ()J
+	public final fun getPlanningTime-UwyO8pc ()J
+	public final fun getRoot ()Ldev/buijs/stratastax/persistence/test/api/PlanNode;
+	public fun hashCode ()I
+	public final fun indexesUsed ()Ljava/util/Set;
+	public final fun rowsRead ()J
+	public final fun sequentialScans ()Ljava/util/List;
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class dev/buijs/stratastax/persistence/test/api/QueryPlanAnalyzer {
+	public abstract fun analyze (Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/ScenarioBuilder {
+	public final fun execute (Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun expect (Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/ScenarioKt {
+	public static final fun scenario (Ldev/buijs/stratastax/persistence/test/api/PersistenceTestHarness;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/ScenarioReport {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;)V
+	public final fun getName ()Ljava/lang/String;
+	public final fun getOutcomes ()Ljava/util/List;
+	public final fun getPassed ()Z
+	public final fun render ()Ljava/lang/String;
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/SnapshotAssertionKt {
+	public static final field UPDATE_SNAPSHOTS_PROPERTY Ljava/lang/String;
+	public static final fun assertMatchesSnapshot (Ldev/buijs/stratastax/persistence/test/api/TestExecution;Ljava/lang/String;Ljava/nio/file/Path;)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public static synthetic fun assertMatchesSnapshot$default (Ldev/buijs/stratastax/persistence/test/api/TestExecution;Ljava/lang/String;Ljava/nio/file/Path;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/SqlExpectationBuilder {
+	public final fun doesNotContain (Ljava/lang/String;)V
+	public final fun usesColumn (Ljava/lang/String;)V
+	public final fun usesPredicate (Ljava/lang/String;)V
+	public final fun usesTable (Ljava/lang/String;)V
+}
+
+public final class dev/buijs/stratastax/persistence/test/api/TestExecution {
+	public fun <init> (Ljava/lang/Object;Ljava/lang/Throwable;Ljava/util/List;)V
+	public final fun component1 ()Ljava/lang/Object;
+	public final fun component2 ()Ljava/lang/Throwable;
+	public final fun component3 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/Object;Ljava/lang/Throwable;Ljava/util/List;)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public static synthetic fun copy$default (Ldev/buijs/stratastax/persistence/test/api/TestExecution;Ljava/lang/Object;Ljava/lang/Throwable;Ljava/util/List;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/test/api/TestExecution;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDataQueries ()Ljava/util/List;
+	public final fun getError ()Ljava/lang/Throwable;
+	public final fun getQueries ()Ljava/util/List;
+	public final fun getResult ()Ljava/lang/Object;
+	public final fun getTransactionStatements ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+

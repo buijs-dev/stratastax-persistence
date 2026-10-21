@@ -1,0 +1,365 @@
+public final class dev/buijs/stratastax/persistence/core/api/BatchFailedException : java/lang/RuntimeException {
+	public fun <init> (Ljava/util/List;)V
+	public final fun getFailures ()Ljava/util/List;
+}
+
+public abstract class dev/buijs/stratastax/persistence/core/api/BatchItemResult {
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/BatchItemResult$Failure : dev/buijs/stratastax/persistence/core/api/BatchItemResult {
+	public fun <init> (Ljava/lang/Throwable;)V
+	public final fun component1 ()Ljava/lang/Throwable;
+	public final fun copy (Ljava/lang/Throwable;)Ldev/buijs/stratastax/persistence/core/api/BatchItemResult$Failure;
+	public static synthetic fun copy$default (Ldev/buijs/stratastax/persistence/core/api/BatchItemResult$Failure;Ljava/lang/Throwable;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/core/api/BatchItemResult$Failure;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getError ()Ljava/lang/Throwable;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/BatchItemResult$Success : dev/buijs/stratastax/persistence/core/api/BatchItemResult {
+	public fun <init> (Ljava/lang/Object;)V
+	public final fun component1 ()Ljava/lang/Object;
+	public final fun copy (Ljava/lang/Object;)Ldev/buijs/stratastax/persistence/core/api/BatchItemResult$Success;
+	public static synthetic fun copy$default (Ldev/buijs/stratastax/persistence/core/api/BatchItemResult$Success;Ljava/lang/Object;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/core/api/BatchItemResult$Success;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getValue ()Ljava/lang/Object;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/BatchResult {
+	public fun <init> (Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;)Ldev/buijs/stratastax/persistence/core/api/BatchResult;
+	public static synthetic fun copy$default (Ldev/buijs/stratastax/persistence/core/api/BatchResult;Ljava/util/List;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/core/api/BatchResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFailures ()Ljava/util/List;
+	public final fun getItems ()Ljava/util/List;
+	public final fun getSuccesses ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/BatchResultKt {
+	public static final fun orThrow (Ldev/buijs/stratastax/persistence/core/api/BatchResult;)Ljava/util/List;
+}
+
+public abstract interface class dev/buijs/stratastax/persistence/core/api/CreateAccess {
+	public abstract fun create (Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun createAll (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/CreateAccess$DefaultImpls {
+	public static fun createAll (Ldev/buijs/stratastax/persistence/core/api/CreateAccess;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public abstract interface class dev/buijs/stratastax/persistence/core/api/DeleteAccess {
+	public abstract fun delete (Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun delete$default (Ldev/buijs/stratastax/persistence/core/api/DeleteAccess;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public fun deleteAll (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/DeleteAccess$DefaultImpls {
+	public static synthetic fun delete$default (Ldev/buijs/stratastax/persistence/core/api/DeleteAccess;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static fun deleteAll (Ldev/buijs/stratastax/persistence/core/api/DeleteAccess;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/DeleteBatchItem {
+	public fun <init> (Ljava/lang/Object;Ljava/lang/Object;)V
+	public synthetic fun <init> (Ljava/lang/Object;Ljava/lang/Object;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/Object;
+	public final fun component2 ()Ljava/lang/Object;
+	public final fun copy (Ljava/lang/Object;Ljava/lang/Object;)Ldev/buijs/stratastax/persistence/core/api/DeleteBatchItem;
+	public static synthetic fun copy$default (Ldev/buijs/stratastax/persistence/core/api/DeleteBatchItem;Ljava/lang/Object;Ljava/lang/Object;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/core/api/DeleteBatchItem;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getExpectedVersion ()Ljava/lang/Object;
+	public final fun getId ()Ljava/lang/Object;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/EntityNotFoundException : java/lang/IllegalArgumentException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Object;)V
+	public final fun getEntityName ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/Object;
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/OptimisticLockException : java/lang/IllegalStateException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)V
+	public final fun getEntityName ()Ljava/lang/String;
+	public final fun getExpectedVersion ()Ljava/lang/Object;
+	public final fun getId ()Ljava/lang/Object;
+}
+
+public abstract interface class dev/buijs/stratastax/persistence/core/api/ReadAccess {
+	public abstract fun count (Ldev/buijs/stratastax/search/core/api/SearchQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun findAll (Ldev/buijs/stratastax/search/core/api/SearchQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun findById (Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/ReferencedEntityNotFoundException : java/lang/IllegalArgumentException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;)V
+	public final fun getColumnName ()Ljava/lang/String;
+	public final fun getTableName ()Ljava/lang/String;
+	public final fun getValue ()Ljava/lang/Object;
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/TransactionIsolation : java/lang/Enum {
+	public static final field READ_COMMITTED Ldev/buijs/stratastax/persistence/core/api/TransactionIsolation;
+	public static final field REPEATABLE_READ Ldev/buijs/stratastax/persistence/core/api/TransactionIsolation;
+	public static final field SERIALIZABLE Ldev/buijs/stratastax/persistence/core/api/TransactionIsolation;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Ldev/buijs/stratastax/persistence/core/api/TransactionIsolation;
+	public static fun values ()[Ldev/buijs/stratastax/persistence/core/api/TransactionIsolation;
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/TransactionOptions {
+	public static final field Companion Ldev/buijs/stratastax/persistence/core/api/TransactionOptions$Companion;
+	public fun <init> ()V
+	public fun <init> (Ldev/buijs/stratastax/persistence/core/api/TransactionIsolation;ZLdev/buijs/stratastax/persistence/core/api/TransactionPropagation;)V
+	public synthetic fun <init> (Ldev/buijs/stratastax/persistence/core/api/TransactionIsolation;ZLdev/buijs/stratastax/persistence/core/api/TransactionPropagation;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ldev/buijs/stratastax/persistence/core/api/TransactionIsolation;
+	public final fun component2 ()Z
+	public final fun component3 ()Ldev/buijs/stratastax/persistence/core/api/TransactionPropagation;
+	public final fun copy (Ldev/buijs/stratastax/persistence/core/api/TransactionIsolation;ZLdev/buijs/stratastax/persistence/core/api/TransactionPropagation;)Ldev/buijs/stratastax/persistence/core/api/TransactionOptions;
+	public static synthetic fun copy$default (Ldev/buijs/stratastax/persistence/core/api/TransactionOptions;Ldev/buijs/stratastax/persistence/core/api/TransactionIsolation;ZLdev/buijs/stratastax/persistence/core/api/TransactionPropagation;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/core/api/TransactionOptions;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getIsolation ()Ldev/buijs/stratastax/persistence/core/api/TransactionIsolation;
+	public final fun getPropagation ()Ldev/buijs/stratastax/persistence/core/api/TransactionPropagation;
+	public final fun getReadOnly ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/TransactionOptions$Companion {
+	public final fun getDEFAULT ()Ldev/buijs/stratastax/persistence/core/api/TransactionOptions;
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/TransactionPropagation : java/lang/Enum {
+	public static final field REQUIRED Ldev/buijs/stratastax/persistence/core/api/TransactionPropagation;
+	public static final field REQUIRES_NEW Ldev/buijs/stratastax/persistence/core/api/TransactionPropagation;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Ldev/buijs/stratastax/persistence/core/api/TransactionPropagation;
+	public static fun values ()[Ldev/buijs/stratastax/persistence/core/api/TransactionPropagation;
+}
+
+public abstract interface class dev/buijs/stratastax/persistence/core/api/UnitOfWork {
+	public abstract fun transaction (Ldev/buijs/stratastax/persistence/core/api/TransactionOptions;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun transaction$default (Ldev/buijs/stratastax/persistence/core/api/UnitOfWork;Ldev/buijs/stratastax/persistence/core/api/TransactionOptions;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/UnitOfWork$DefaultImpls {
+	public static synthetic fun transaction$default (Ldev/buijs/stratastax/persistence/core/api/UnitOfWork;Ldev/buijs/stratastax/persistence/core/api/TransactionOptions;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public abstract interface class dev/buijs/stratastax/persistence/core/api/UpdateAccess {
+	public abstract fun update (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun update$default (Ldev/buijs/stratastax/persistence/core/api/UpdateAccess;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public fun updateAll (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/UpdateAccess$DefaultImpls {
+	public static synthetic fun update$default (Ldev/buijs/stratastax/persistence/core/api/UpdateAccess;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static fun updateAll (Ldev/buijs/stratastax/persistence/core/api/UpdateAccess;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class dev/buijs/stratastax/persistence/core/api/UpdateBatchItem {
+	public fun <init> (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V
+	public synthetic fun <init> (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/Object;
+	public final fun component2 ()Ljava/lang/Object;
+	public final fun component3 ()Ljava/lang/Object;
+	public final fun copy (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ldev/buijs/stratastax/persistence/core/api/UpdateBatchItem;
+	public static synthetic fun copy$default (Ldev/buijs/stratastax/persistence/core/api/UpdateBatchItem;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/core/api/UpdateBatchItem;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCommand ()Ljava/lang/Object;
+	public final fun getExpectedVersion ()Ljava/lang/Object;
+	public final fun getId ()Ljava/lang/Object;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/buijs/stratastax/persistence/core/spi/BatchSupportKt {
+	public static final fun itemResultOf (Lkotlin/jvm/functions/Function0;)Ldev/buijs/stratastax/persistence/core/api/BatchItemResult;
+	public static final fun runCatchingNonCancellation (Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
+	public static final fun toItemResult (Ljava/lang/Object;)Ldev/buijs/stratastax/persistence/core/api/BatchItemResult;
+}
+
+public final class dev/buijs/stratastax/persistence/core/spi/MapRowContext : dev/buijs/stratastax/persistence/core/spi/RowContext {
+	public fun <init> (Ljava/util/Map;)V
+	public fun boolean (Ljava/lang/String;)Z
+	public fun booleanList (Ljava/lang/String;)Ljava/util/List;
+	public fun booleanOrNull (Ljava/lang/String;)Ljava/lang/Boolean;
+	public fun booleanSet (Ljava/lang/String;)Ljava/util/Set;
+	public fun decimal (Ljava/lang/String;)Ljava/math/BigDecimal;
+	public fun decimalList (Ljava/lang/String;)Ljava/util/List;
+	public fun decimalOrNull (Ljava/lang/String;)Ljava/math/BigDecimal;
+	public fun decimalSet (Ljava/lang/String;)Ljava/util/Set;
+	public fun integer (Ljava/lang/String;)I
+	public fun integerList (Ljava/lang/String;)Ljava/util/List;
+	public fun integerOrNull (Ljava/lang/String;)Ljava/lang/Integer;
+	public fun integerSet (Ljava/lang/String;)Ljava/util/Set;
+	public fun localDate (Ljava/lang/String;)Ljava/time/LocalDate;
+	public fun localDateList (Ljava/lang/String;)Ljava/util/List;
+	public fun localDateOrNull (Ljava/lang/String;)Ljava/time/LocalDate;
+	public fun localDateSet (Ljava/lang/String;)Ljava/util/Set;
+	public fun long (Ljava/lang/String;)J
+	public fun longList (Ljava/lang/String;)Ljava/util/List;
+	public fun longOrNull (Ljava/lang/String;)Ljava/lang/Long;
+	public fun longSet (Ljava/lang/String;)Ljava/util/Set;
+	public fun map (Ljava/lang/String;)Ljava/util/Map;
+	public fun mapOrNull (Ljava/lang/String;)Ljava/util/Map;
+	public fun objectList (Ljava/lang/String;)Ljava/util/List;
+	public fun objectListOrNull (Ljava/lang/String;)Ljava/util/List;
+	public fun offsetDateTime (Ljava/lang/String;)Ljava/time/OffsetDateTime;
+	public fun offsetDateTimeList (Ljava/lang/String;)Ljava/util/List;
+	public fun offsetDateTimeOrNull (Ljava/lang/String;)Ljava/time/OffsetDateTime;
+	public fun offsetDateTimeSet (Ljava/lang/String;)Ljava/util/Set;
+	public fun rawOrNull (Ljava/lang/String;)Ljava/lang/Object;
+	public fun string (Ljava/lang/String;)Ljava/lang/String;
+	public fun stringList (Ljava/lang/String;)Ljava/util/List;
+	public fun stringOrNull (Ljava/lang/String;)Ljava/lang/String;
+	public fun stringSet (Ljava/lang/String;)Ljava/util/Set;
+	public fun uuid (Ljava/lang/String;)Ljava/util/UUID;
+	public fun uuidList (Ljava/lang/String;)Ljava/util/List;
+	public fun uuidOrNull (Ljava/lang/String;)Ljava/util/UUID;
+	public fun uuidSet (Ljava/lang/String;)Ljava/util/Set;
+}
+
+public final class dev/buijs/stratastax/persistence/core/spi/QueryExecution {
+	public synthetic fun <init> (Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;JLjava/lang/Integer;Ljava/lang/String;Ljava/lang/Throwable;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;JLjava/lang/Integer;Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;
+	public final fun component2 ()Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
+	public final fun component3-UwyO8pc ()J
+	public final fun component4 ()Ljava/lang/Integer;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/Throwable;
+	public final fun component7 ()I
+	public final fun copy-SYHnMyU (Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;JLjava/lang/Integer;Ljava/lang/String;Ljava/lang/Throwable;I)Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;
+	public static synthetic fun copy-SYHnMyU$default (Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;JLjava/lang/Integer;Ljava/lang/String;Ljava/lang/Throwable;IILjava/lang/Object;)Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBatchSize ()I
+	public final fun getDuration-UwyO8pc ()J
+	public final fun getError ()Ljava/lang/Throwable;
+	public final fun getFailed ()Z
+	public final fun getOperation ()Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
+	public final fun getQuery ()Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;
+	public final fun getRowCount ()Ljava/lang/Integer;
+	public final fun getTransactionId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class dev/buijs/stratastax/persistence/core/spi/QueryExecutionListener {
+	public abstract fun executed (Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class dev/buijs/stratastax/persistence/core/spi/QueryOperation : java/lang/Enum {
+	public static final field BEGIN Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
+	public static final field COMMIT Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
+	public static final field Companion Ldev/buijs/stratastax/persistence/core/spi/QueryOperation$Companion;
+	public static final field DELETE Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
+	public static final field INSERT Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
+	public static final field RELEASE_SAVEPOINT Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
+	public static final field ROLLBACK Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
+	public static final field ROLLBACK_TO_SAVEPOINT Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
+	public static final field SAVEPOINT Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
+	public static final field SELECT Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
+	public static final field UNKNOWN Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
+	public static final field UPDATE Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun isTransactionControl ()Z
+	public static fun valueOf (Ljava/lang/String;)Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
+	public static fun values ()[Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
+}
+
+public final class dev/buijs/stratastax/persistence/core/spi/QueryOperation$Companion {
+	public final fun of (Ljava/lang/String;)Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
+}
+
+public final class dev/buijs/stratastax/persistence/core/spi/RenderedQuery {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;)Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;
+	public static synthetic fun copy$default (Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getParameters ()Ljava/util/List;
+	public final fun getSql ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class dev/buijs/stratastax/persistence/core/spi/RowContext {
+	public fun boolean (Ljava/lang/String;)Z
+	public abstract fun booleanList (Ljava/lang/String;)Ljava/util/List;
+	public abstract fun booleanOrNull (Ljava/lang/String;)Ljava/lang/Boolean;
+	public fun booleanSet (Ljava/lang/String;)Ljava/util/Set;
+	public fun decimal (Ljava/lang/String;)Ljava/math/BigDecimal;
+	public abstract fun decimalList (Ljava/lang/String;)Ljava/util/List;
+	public abstract fun decimalOrNull (Ljava/lang/String;)Ljava/math/BigDecimal;
+	public fun decimalSet (Ljava/lang/String;)Ljava/util/Set;
+	public fun integer (Ljava/lang/String;)I
+	public abstract fun integerList (Ljava/lang/String;)Ljava/util/List;
+	public abstract fun integerOrNull (Ljava/lang/String;)Ljava/lang/Integer;
+	public fun integerSet (Ljava/lang/String;)Ljava/util/Set;
+	public fun localDate (Ljava/lang/String;)Ljava/time/LocalDate;
+	public abstract fun localDateList (Ljava/lang/String;)Ljava/util/List;
+	public abstract fun localDateOrNull (Ljava/lang/String;)Ljava/time/LocalDate;
+	public fun localDateSet (Ljava/lang/String;)Ljava/util/Set;
+	public fun long (Ljava/lang/String;)J
+	public abstract fun longList (Ljava/lang/String;)Ljava/util/List;
+	public abstract fun longOrNull (Ljava/lang/String;)Ljava/lang/Long;
+	public fun longSet (Ljava/lang/String;)Ljava/util/Set;
+	public fun map (Ljava/lang/String;)Ljava/util/Map;
+	public abstract fun mapOrNull (Ljava/lang/String;)Ljava/util/Map;
+	public fun objectList (Ljava/lang/String;)Ljava/util/List;
+	public abstract fun objectListOrNull (Ljava/lang/String;)Ljava/util/List;
+	public fun offsetDateTime (Ljava/lang/String;)Ljava/time/OffsetDateTime;
+	public abstract fun offsetDateTimeList (Ljava/lang/String;)Ljava/util/List;
+	public abstract fun offsetDateTimeOrNull (Ljava/lang/String;)Ljava/time/OffsetDateTime;
+	public fun offsetDateTimeSet (Ljava/lang/String;)Ljava/util/Set;
+	public abstract fun rawOrNull (Ljava/lang/String;)Ljava/lang/Object;
+	public fun string (Ljava/lang/String;)Ljava/lang/String;
+	public abstract fun stringList (Ljava/lang/String;)Ljava/util/List;
+	public abstract fun stringOrNull (Ljava/lang/String;)Ljava/lang/String;
+	public fun stringSet (Ljava/lang/String;)Ljava/util/Set;
+	public fun uuid (Ljava/lang/String;)Ljava/util/UUID;
+	public abstract fun uuidList (Ljava/lang/String;)Ljava/util/List;
+	public abstract fun uuidOrNull (Ljava/lang/String;)Ljava/util/UUID;
+	public fun uuidSet (Ljava/lang/String;)Ljava/util/Set;
+}
+
+public final class dev/buijs/stratastax/persistence/core/spi/RowContext$DefaultImpls {
+	public static fun boolean (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)Z
+	public static fun booleanSet (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)Ljava/util/Set;
+	public static fun decimal (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)Ljava/math/BigDecimal;
+	public static fun decimalSet (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)Ljava/util/Set;
+	public static fun integer (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)I
+	public static fun integerSet (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)Ljava/util/Set;
+	public static fun localDate (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)Ljava/time/LocalDate;
+	public static fun localDateSet (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)Ljava/util/Set;
+	public static fun long (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)J
+	public static fun longSet (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)Ljava/util/Set;
+	public static fun map (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)Ljava/util/Map;
+	public static fun objectList (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)Ljava/util/List;
+	public static fun offsetDateTime (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)Ljava/time/OffsetDateTime;
+	public static fun offsetDateTimeSet (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)Ljava/util/Set;
+	public static fun string (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)Ljava/lang/String;
+	public static fun stringSet (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)Ljava/util/Set;
+	public static fun uuid (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)Ljava/util/UUID;
+	public static fun uuidSet (Ldev/buijs/stratastax/persistence/core/spi/RowContext;Ljava/lang/String;)Ljava/util/Set;
+}
+
+public abstract interface class dev/buijs/stratastax/persistence/core/spi/RowMapper {
+	public abstract fun map (Ldev/buijs/stratastax/persistence/core/spi/RowContext;)Ljava/lang/Object;
+}
+
+public final class dev/buijs/stratastax/persistence/core/spi/UnknownColumnException : java/lang/IllegalArgumentException {
+	public fun <init> (Ljava/lang/String;Ljava/util/Collection;)V
+	public final fun getAvailable ()Ljava/util/Collection;
+	public final fun getName ()Ljava/lang/String;
+}
+

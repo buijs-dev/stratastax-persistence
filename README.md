@@ -40,7 +40,8 @@ matched nothing.
 | Module                 | What it contains                                                                                                                                                                                 | Depends on                                        |
 |------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------|
 | `persistence-core`     | The API (`ReadAccess`, `CreateAccess`, `UpdateAccess`, `DeleteAccess`, `UnitOfWork`, `BatchResult`, exceptions) and the SPI (`RowContext`, `RowMapper`, `QueryExecutionListener`). No framework. | `search-core`                                     |
-| `persistence-reactive` | The Vert.x implementation: executors, transactions, search rendering (`SearchSql`) and the write kit generated code uses.                                                                        | `persistence-core`, Vert.x Mutiny Postgres client |
+| `persistence-reactive` | The Vert.x implementation: executors, transactions, search rendering (`SearchSql`) and the write kit generated code uses. Database-neutral: SQL syntax comes from a `PersistenceDialect`.        | `persistence-core`, Vert.x Mutiny SQL client      |
+| `persistence-postgres` | `PostgresDialect`: the PostgreSQL dialect. Another database is a module like it, which can live in another repository; see [docs/dialects.md](docs/dialects.md).                                 | `persistence-reactive`, Vert.x Mutiny Postgres client |
 | `persistence-csv`      | `CsvRowReader`: CSV rows through `RowContext`/`RowMapper`.                                                                                                                                       | `persistence-core`, commons-csv, Jackson 3        |
 | `persistence-test`     | `PersistenceTestHarness`, query assertions, query plans, snapshots and `PostgresTestDatabase`. Test scope only.                                                                                  | `persistence-core`, Testcontainers, Jackson 3     |
 
@@ -52,7 +53,7 @@ internals (`internal`, not visible outside the module). See [docs/architecture.m
 ```kotlin
 dependencies {
     implementation("dev.buijs.stratastax:persistence-core:<version>")
-    implementation("dev.buijs.stratastax:persistence-reactive:<version>")
+    implementation("dev.buijs.stratastax:persistence-postgres:<version>") // brings persistence-reactive
     implementation("dev.buijs.stratastax:persistence-csv:<version>") // when importing CSV
 
     testImplementation("dev.buijs.stratastax:persistence-test:<version>")
@@ -67,7 +68,7 @@ Generated code looks like [this](docs/code-generation.md). By hand, the same bui
 
 ```kotlin
 // 1. Infrastructure, once per application.
-val transactional = VertxTransactionalExecutor(pool)       // pool: io.vertx.mutiny.sqlclient.Pool
+val transactional = VertxTransactionalExecutor(pool, PostgresDialect) // pool: io.vertx.mutiny.sqlclient.Pool
 val queries = transactional.ambientQueryExecutor()          // joins the caller's transaction
 
 // 2. The statements of a `game`, and how its row maps.
@@ -80,6 +81,7 @@ val gameMapper = RowMapper { row -> Game(row.uuid("id"), row.string("name")) }
 // 3. How a search on it is rendered: the fixed SQL, and per field where a condition and a sort go.
 val gameSearch =
     SearchSql(
+        dialect = PostgresDialect,
         select = "SELECT game.public_id AS id, game.name AS name FROM game",
         countSelect = "SELECT count(*) AS count FROM game",
         fields =
