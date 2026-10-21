@@ -1,13 +1,14 @@
 name: Publish Release
 
+# Merging the release pull request (develop into main) publishes the release.
 on:
-  push:
-    tags: [ 'v*' ]
+  pull_request:
+    types: [ closed ]
+    branches: [ main ]
 
 permissions:
   contents: write
   packages: write
-  pull-requests: write
 
 jobs:
   publish:

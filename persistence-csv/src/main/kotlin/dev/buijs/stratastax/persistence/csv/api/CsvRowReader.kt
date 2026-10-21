@@ -24,12 +24,12 @@ import org.apache.commons.csv.CSVParser
 import java.io.Reader
 
 /**
- * Reads an RFC 4180 CSV file with a header row and maps every data row with a [RowMapper] - the
+ * Reads an RFC 4180 CSV file with a header row and maps every data row with a [RowMapper]; the
  * same mapper type that maps a database row, so one (generated) mapper can serve both.
  *
  * Each row is read through a [dev.buijs.stratastax.persistence.core.spi.RowContext]: columns are
  * matched by [CsvReadOptions.columnNameNormalizer], an empty cell reads as `null`, and a
- * multi-valued cell holds either a JSON array (`["a","b"]`) or a [CsvReadOptions.listDelimiter]
+ * multivalued cell holds either a JSON array (`["a","b"]`) or a [CsvReadOptions.listDelimiter]
  * separated list. A JSON object or array of objects in a cell is read with `map`/`objectList`.
  */
 public object CsvRowReader {

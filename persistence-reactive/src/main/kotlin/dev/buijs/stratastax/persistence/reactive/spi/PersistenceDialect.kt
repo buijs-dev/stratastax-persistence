@@ -17,10 +17,6 @@
 package dev.buijs.stratastax.persistence.reactive.spi
 
 import dev.buijs.stratastax.persistence.core.api.TransactionOptions
-import org.jooq.DSLContext
-import org.jooq.SQLDialect
-import org.jooq.conf.Settings
-import org.jooq.impl.DSL
 
 /**
  * Everything database-specific the persistence layer needs, so another SQL dialect can be plugged
@@ -28,22 +24,6 @@ import org.jooq.impl.DSL
  * use; see `docs/dialects.md` for what is inherently Postgres-only.
  */
 public interface PersistenceDialect {
-
-    /** The jOOQ dialect queries are rendered in. */
-    public val sqlDialect: SQLDialect
-
-    /**
-     * The jOOQ settings this dialect needs, e.g. how identifiers are quoted. The persistence layer
-     * relies on them (aliases are matched through [columnKey]), so build a [DSLContext] with [dsl].
-     */
-    public fun settings(): Settings
-
-    /** A [DSLContext] for this dialect; [customize] may add settings of its own on top. */
-    public fun dsl(customize: (Settings) -> Settings = { it }): DSLContext =
-        DSL.using(sqlDialect, customize(settings()))
-
-    /** Renders queries with the placeholder style of this dialect's driver. */
-    public val renderer: SqlRenderer
 
     /** The SQL of the transaction-control statements. */
     public val transactions: TransactionSql
@@ -53,9 +33,6 @@ public interface PersistenceDialect {
      * it is not quoted (lowercase on Postgres).
      */
     public fun columnKey(name: String): String
-
-    /** Whether [word] is reserved, so it cannot be used unquoted as an alias. */
-    public fun isReserved(word: String): Boolean
 }
 
 /** The transaction-control statements of a [PersistenceDialect]. */

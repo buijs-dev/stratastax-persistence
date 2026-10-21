@@ -36,8 +36,6 @@ import java.util.UUID
  */
 public interface RowContext {
 
-    // UUID
-
     public fun uuid(name: String): UUID = uuidOrNull(name) ?: nullColumn(name)
 
     public fun uuidOrNull(name: String): UUID?
@@ -45,8 +43,6 @@ public interface RowContext {
     public fun uuidList(name: String): List<UUID>
 
     public fun uuidSet(name: String): Set<UUID> = uuidList(name).toSet()
-
-    // OffsetDateTime
 
     public fun offsetDateTime(name: String): OffsetDateTime =
         offsetDateTimeOrNull(name) ?: nullColumn(name)
@@ -58,8 +54,6 @@ public interface RowContext {
     public fun offsetDateTimeSet(name: String): Set<OffsetDateTime> =
         offsetDateTimeList(name).toSet()
 
-    // LocalDate
-
     public fun localDate(name: String): LocalDate = localDateOrNull(name) ?: nullColumn(name)
 
     public fun localDateOrNull(name: String): LocalDate?
@@ -67,8 +61,6 @@ public interface RowContext {
     public fun localDateList(name: String): List<LocalDate>
 
     public fun localDateSet(name: String): Set<LocalDate> = localDateList(name).toSet()
-
-    // Boolean
 
     public fun boolean(name: String): Boolean = booleanOrNull(name) ?: nullColumn(name)
 
@@ -78,8 +70,6 @@ public interface RowContext {
 
     public fun booleanSet(name: String): Set<Boolean> = booleanList(name).toSet()
 
-    // String
-
     public fun string(name: String): String = stringOrNull(name) ?: nullColumn(name)
 
     public fun stringOrNull(name: String): String?
@@ -87,8 +77,6 @@ public interface RowContext {
     public fun stringList(name: String): List<String>
 
     public fun stringSet(name: String): Set<String> = stringList(name).toSet()
-
-    // Long
 
     public fun long(name: String): Long = longOrNull(name) ?: nullColumn(name)
 
@@ -98,8 +86,6 @@ public interface RowContext {
 
     public fun longSet(name: String): Set<Long> = longList(name).toSet()
 
-    // Int
-
     public fun integer(name: String): Int = integerOrNull(name) ?: nullColumn(name)
 
     public fun integerOrNull(name: String): Int?
@@ -107,8 +93,6 @@ public interface RowContext {
     public fun integerList(name: String): List<Int>
 
     public fun integerSet(name: String): Set<Int> = integerList(name).toSet()
-
-    // BigDecimal
 
     public fun decimal(name: String): BigDecimal = decimalOrNull(name) ?: nullColumn(name)
 
@@ -118,17 +102,14 @@ public interface RowContext {
 
     public fun decimalSet(name: String): Set<BigDecimal> = decimalList(name).toSet()
 
-    // JSON object, e.g. a free-form jsonb attributes column
-
+    /** A JSON object column, decoded to a map of plain JSON values. */
     public fun map(name: String): Map<String, Any?> = mapOrNull(name) ?: nullColumn(name)
 
     /** A JSON object column, decoded to a map of plain JSON values. */
     public fun mapOrNull(name: String): Map<String, Any?>?
 
-    // Nested rows
-
     /**
-     * A JSON array of objects (e.g. the aggregated rows of a one-to-many group), one nested
+     * A JSON array of objects (e.g.m the aggregated rows of a one-to-many group), one nested
      * [RowContext] per element, empty when NULL. A nested row is read with the same accessors and
      * the same rules as this one.
      */

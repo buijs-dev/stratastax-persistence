@@ -35,7 +35,7 @@ public data class RenderedQuery(
 )
 
 /**
- * One statement that ran against the database, reported to every [QueryExecutionListener] - for
+ * One statement that ran against the database, reported to every [QueryExecutionListener] for
  * every statement, including transaction control (`BEGIN`, `SAVEPOINT`, `COMMIT`, ...) and
  * statements that failed.
  *
@@ -43,6 +43,9 @@ public data class RenderedQuery(
  *   ran outside any transaction (autocommit).
  * @property rowCount the number of rows returned or affected; `null` when the statement failed.
  * @property error why the statement failed; `null` when it succeeded.
+ * @property batchSize how many parameter sets the statement ran with in one round trip: `1` for a
+ *   plain statement, more for a batch, whose [query] holds the first set's parameters and whose
+ *   [rowCount] counts the rows of every set.
  */
 public data class QueryExecution(
     val query: RenderedQuery,
@@ -51,6 +54,7 @@ public data class QueryExecution(
     val rowCount: Int?,
     val transactionId: String? = null,
     val error: Throwable? = null,
+    val batchSize: Int = 1,
 ) {
 
     /** Whether the statement failed. */
@@ -62,7 +66,6 @@ public data class QueryExecution(
 public enum class QueryOperation(
     public val isTransactionControl: Boolean = false,
 ) {
-
     SELECT,
     INSERT,
     UPDATE,

@@ -1,0 +1,63 @@
+public final class dev/buijs/stratastax/persistence/csv/api/CsvImportException : java/lang/IllegalArgumentException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public final class dev/buijs/stratastax/persistence/csv/api/CsvImportResult {
+	public fun <init> (Ljava/util/List;Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;Ljava/util/List;)Ldev/buijs/stratastax/persistence/csv/api/CsvImportResult;
+	public static synthetic fun copy$default (Ldev/buijs/stratastax/persistence/csv/api/CsvImportResult;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/csv/api/CsvImportResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getImported ()Ljava/util/List;
+	public final fun getSkipped ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/buijs/stratastax/persistence/csv/api/CsvReadOptions {
+	public static final field Companion Ldev/buijs/stratastax/persistence/csv/api/CsvReadOptions$Companion;
+	public fun <init> ()V
+	public fun <init> (CLkotlin/jvm/functions/Function1;Z)V
+	public synthetic fun <init> (CLkotlin/jvm/functions/Function1;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()C
+	public final fun component2 ()Lkotlin/jvm/functions/Function1;
+	public final fun component3 ()Z
+	public final fun copy (CLkotlin/jvm/functions/Function1;Z)Ldev/buijs/stratastax/persistence/csv/api/CsvReadOptions;
+	public static synthetic fun copy$default (Ldev/buijs/stratastax/persistence/csv/api/CsvReadOptions;CLkotlin/jvm/functions/Function1;ZILjava/lang/Object;)Ldev/buijs/stratastax/persistence/csv/api/CsvReadOptions;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getColumnNameNormalizer ()Lkotlin/jvm/functions/Function1;
+	public final fun getFailOnInvalidRow ()Z
+	public final fun getListDelimiter ()C
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/buijs/stratastax/persistence/csv/api/CsvReadOptions$Companion {
+	public final fun getDEFAULT ()Ldev/buijs/stratastax/persistence/csv/api/CsvReadOptions;
+}
+
+public final class dev/buijs/stratastax/persistence/csv/api/CsvReadOptionsKt {
+	public static final fun normalizeCsvColumnName (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class dev/buijs/stratastax/persistence/csv/api/CsvRowReader {
+	public static final field INSTANCE Ldev/buijs/stratastax/persistence/csv/api/CsvRowReader;
+	public final fun read (Ljava/io/Reader;Ldev/buijs/stratastax/persistence/core/spi/RowMapper;Ldev/buijs/stratastax/persistence/csv/api/CsvReadOptions;)Ldev/buijs/stratastax/persistence/csv/api/CsvImportResult;
+	public static synthetic fun read$default (Ldev/buijs/stratastax/persistence/csv/api/CsvRowReader;Ljava/io/Reader;Ldev/buijs/stratastax/persistence/core/spi/RowMapper;Ldev/buijs/stratastax/persistence/csv/api/CsvReadOptions;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/csv/api/CsvImportResult;
+}
+
+public final class dev/buijs/stratastax/persistence/csv/api/CsvSkippedRow {
+	public fun <init> (JLjava/lang/String;)V
+	public final fun component1 ()J
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (JLjava/lang/String;)Ldev/buijs/stratastax/persistence/csv/api/CsvSkippedRow;
+	public static synthetic fun copy$default (Ldev/buijs/stratastax/persistence/csv/api/CsvSkippedRow;JLjava/lang/String;ILjava/lang/Object;)Ldev/buijs/stratastax/persistence/csv/api/CsvSkippedRow;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getRecord ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+

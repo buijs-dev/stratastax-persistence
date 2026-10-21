@@ -18,36 +18,46 @@ package dev.buijs.stratastax.persistence.reactive.spi
 
 import dev.buijs.stratastax.persistence.core.api.TransactionOptions
 import dev.buijs.stratastax.persistence.core.api.UnitOfWork
-import dev.buijs.stratastax.persistence.core.spi.RenderedQuery
 import dev.buijs.stratastax.persistence.core.spi.RowContext
-import org.jooq.Query
 
 /**
- * Runs a jOOQ [Query] and hands back its rows as [RowContext]s. jOOQ only builds the SQL; this is
- * the one place where SQL actually runs.
+ * Runs SQL and hands back its rows as [RowContext]s: the one place where SQL actually runs. SQL is
+ * text with numbered placeholders (`$1, $2, ...`) and its parameters; the statements generated
+ * code holds as literal constants, and handwritten ones alike.
  */
 public interface QueryExecutor {
 
-    /** Every row [query] returns. */
-    public suspend fun executeAndGetAll(query: Query): List<RowContext>
+    /**
+     * Every row [sql] returns, with [params] bound to its placeholders in order: `$1` is
+     * `params[0]`. A [Map] parameter is bound as a JSON object; a SQL array is bound from a typed
+     * array (`Array<UUID>`, `Array<Long>`, ...).
+     */
+    public suspend fun query(
+        sql: String,
+        params: List<Any?> = emptyList(),
+    ): List<RowContext>
 
-    /** The first row [query] returns, or `null`. [query] should limit itself to one row. */
-    public suspend fun executeAndGetFirst(query: Query): RowContext?
+    /** The first row [sql] returns, or `null`. [sql] should limit itself to one row. */
+    public suspend fun queryFirst(
+        sql: String,
+        params: List<Any?> = emptyList(),
+    ): RowContext?
 
-    /** Whether [query] returns any row. [query] should limit itself to one row. */
-    public suspend fun exists(query: Query): Boolean
-
-    /** The first column of the first row of a `SELECT count(*) ...` [query], `0` without rows. */
-    public suspend fun executeAndGetCount(query: Query): Long
-
-    /** The number of rows a plain (non-`RETURNING`) `INSERT`/`UPDATE`/`DELETE` affected. */
-    public suspend fun executeUpdate(query: Query): Int
+    /** The number of rows an `INSERT`/`UPDATE`/`DELETE` [sql] affected. */
+    public suspend fun execute(
+        sql: String,
+        params: List<Any?> = emptyList(),
+    ): Int
 
     /**
-     * The row an `INSERT`/`UPDATE ... RETURNING` [query] returned, or `null` when it affected no
-     * row.
+     * Runs [sql] once per parameter set of [batch], all in one round trip, and returns the rows each
+     * run returned (empty for a run without `RETURNING` or that matched nothing), in the order of
+     * [batch]. An empty [batch] runs nothing.
      */
-    public suspend fun executeReturning(query: Query): RowContext?
+    public suspend fun batch(
+        sql: String,
+        batch: List<List<Any?>>,
+    ): List<List<RowContext>>
 }
 
 /**
@@ -78,10 +88,4 @@ public interface TransactionalExecutor : UnitOfWork {
         options: TransactionOptions,
         block: suspend () -> T,
     ): T = withTransaction(options) { block() }
-}
-
-/** Renders a jOOQ [Query] to the SQL text and bind values a driver sends to the database. */
-public fun interface SqlRenderer {
-
-    public fun render(query: Query): RenderedQuery
 }

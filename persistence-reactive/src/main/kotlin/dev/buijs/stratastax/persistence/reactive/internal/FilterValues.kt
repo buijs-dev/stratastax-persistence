@@ -19,9 +19,10 @@ package dev.buijs.stratastax.persistence.reactive.internal
 import dev.buijs.stratastax.search.core.api.FilterValue
 import dev.buijs.stratastax.search.core.api.SearchException
 import dev.buijs.stratastax.search.core.spi.CursorElement
-import org.jooq.Field
-import org.jooq.JSON
-import org.jooq.JSONB
+import io.vertx.core.json.Json
+import io.vertx.core.json.JsonArray
+import io.vertx.core.json.JsonObject
+import io.vertx.mutiny.sqlclient.Tuple
 import java.math.BigDecimal
 import java.sql.Timestamp
 import java.time.Instant
@@ -29,6 +30,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
+import java.util.UUID
 
 /**
  * Converts a parsed [FilterValue] to the Java type of the column it is compared with: a number is
@@ -42,75 +44,62 @@ internal fun filterValueFor(
     targetType: Class<*>,
 ): Any? =
     when (value) {
-        is FilterValue.StringValue -> {
-            value.value
-        }
-        is FilterValue.NumberValue -> {
-            convertNumber(value.value, targetType)
-        }
-        is FilterValue.BooleanValue -> {
-            value.value
-        }
-        is FilterValue.DateTimeValue -> {
-            convertDateTime(value.value, targetType)
-        }
-        is FilterValue.DateValue -> {
-            convertDate(value.value, targetType)
-        }
-        is FilterValue.EnumValue -> {
-            convertEnum(value.value, targetType)
-        }
-        is FilterValue.UuidValue -> {
-            value.value
-        }
-        is FilterValue.JsonValue -> {
-            if (targetType == JSON::class.java) {
-                JSON.valueOf(value.value)
-            } else {
-                JSONB.valueOf(value.value)
-            }
-        }
-        is FilterValue.NullValue -> {
-            null
-        }
+        is FilterValue.StringValue -> value.value
+        is FilterValue.NumberValue -> convertNumber(value.value, targetType)
+        is FilterValue.BooleanValue -> value.value
+        is FilterValue.DateTimeValue -> convertDateTime(value.value, targetType)
+        is FilterValue.DateValue -> convertDate(value.value, targetType)
+        is FilterValue.EnumValue -> convertEnum(value.value, targetType)
+        is FilterValue.UuidValue -> value.value
+        is FilterValue.JsonValue -> jsonValue(value.value)
+        is FilterValue.NullValue -> null
     }
 
 /**
- * Converts a cursor [element] to the Java type of [column], like [filterValueFor] does for a filter.
+ * Converts a cursor [element] to [targetType], the Java type of the column field [fieldName] sorts
+ * on, like [filterValueFor] does for a filter. A text element holds a string, a UUID, or an enum
+ * name.
  *
- * @throws SearchException for an element that cannot be a cursor position (a list).
+ * @throws SearchException for an element that cannot be a cursor position (a list), or that does
+ *   not fit [targetType].
  */
 internal fun cursorValueFor(
     element: CursorElement,
-    column: Field<*>,
+    targetType: Class<*>,
     fieldName: String,
 ): Any? =
     when (element) {
-        is CursorElement.NullValue -> {
-            null
-        }
-        is CursorElement.StringValue -> {
-            if (column.type.isEnum) {
-                convertEnum(
-                    element.value,
-                    column.type,
-                )
-            } else {
-                // TODO convert is deprecated dus refactor
-                column.dataType.convert(element.value)
-            }
-        }
-        is CursorElement.NumberValue -> {
-            convertNumber(element.value, column.type)
-        }
-        is CursorElement.BooleanValue -> {
-            element.value
-        }
-        is CursorElement.TimestampValue -> {
-            convertDateTime(element.value, column.type)
-        }
+        is CursorElement.NullValue -> null
+        is CursorElement.StringValue -> textCursorValue(element.value, targetType, fieldName)
+        is CursorElement.NumberValue -> convertNumber(element.value, targetType)
+        is CursorElement.BooleanValue -> element.value
+        is CursorElement.TimestampValue -> convertDateTime(element.value, targetType)
         is CursorElement.ListValue -> {
             throw SearchException("Field '$fieldName' cannot be a cursor position")
+        }
+    }
+
+private fun textCursorValue(
+    value: String,
+    targetType: Class<*>,
+    fieldName: String,
+): Any =
+    when {
+        targetType == String::class.java -> {
+            value
+        }
+        targetType == UUID::class.java -> {
+            runCatching { UUID.fromString(value) }.getOrElse {
+                throw SearchException("Cursor value '$value' of field '$fieldName' is not a UUID")
+            }
+        }
+        targetType.isEnum -> {
+            convertEnum(value, targetType)
+        }
+        else -> {
+            throw SearchException(
+                "Cursor value of field '$fieldName' cannot be read as a ${targetType.simpleName}",
+            )
         }
     }
 
@@ -180,3 +169,14 @@ private fun convertEnum(
             )
         }
     }
+
+/** JSON text as the Vert.x value a json or jsonb parameter is bound from. */
+private fun jsonValue(raw: String): Any {
+    val text = raw.trim()
+    return when {
+        text.startsWith("{") -> JsonObject(text)
+        text.startsWith("[") -> JsonArray(text)
+        text == "null" -> Tuple.JSON_NULL
+        else -> Json.decodeValue(text)
+    }
+}

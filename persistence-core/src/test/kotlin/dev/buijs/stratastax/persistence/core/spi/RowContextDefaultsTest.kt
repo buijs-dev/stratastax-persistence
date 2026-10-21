@@ -26,7 +26,7 @@ import java.util.UUID
 
 /**
  * The accessors [RowContext] derives from the abstract ones: the non-null `x(name)` of every type
- * and the `xSet(name)` of every multi-valued type.
+ * and the `xSet(name)` of every multivalued type.
  */
 class RowContextDefaultsTest {
 

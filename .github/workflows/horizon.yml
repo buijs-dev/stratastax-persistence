@@ -1,0 +1,21 @@
+name: Horizon docs
+
+# Checks horizon/, the documentation of this repository on docs.stratastax.dev, and asks the site to
+# rebuild after a push to main (see ci-templates, horizon-docs.yml).
+on:
+  pull_request:
+    paths:
+      - horizon/**
+  push:
+    branches: [ main ]
+    paths:
+      - horizon/**
+
+permissions:
+  contents: read
+
+jobs:
+  horizon:
+    uses: buijs-dev/ci-templates/.github/workflows/horizon-docs.yml@main
+    secrets:
+      docs-dispatch-token: ${{ secrets.DOCS_DISPATCH_TOKEN }}

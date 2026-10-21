@@ -19,11 +19,10 @@ package dev.buijs.stratastax.persistence.reactive.api
 import dev.buijs.stratastax.persistence.core.spi.RowContext
 import dev.buijs.stratastax.persistence.reactive.internal.currentTransaction
 import dev.buijs.stratastax.persistence.reactive.spi.QueryExecutor
-import org.jooq.Query
 
 /**
- * A [QueryExecutor] that runs every query inside the transaction the calling coroutine is in - one
- * started by a [VertxTransactionalExecutor] over [owner] - or on [fallback] when there is none.
+ * A [QueryExecutor] that runs every query inside the transaction the calling coroutine is in
+ * (one started by a [VertxTransactionalExecutor] over [owner]) or on [fallback] when there is none.
  *
  * This is the executor the access classes get: a read then sees, and takes part in, the caller's
  * [dev.buijs.stratastax.persistence.core.api.UnitOfWork.transaction] instead of running on another
@@ -35,21 +34,26 @@ public class AmbientQueryExecutor(
 ) : QueryExecutor {
 
     private suspend fun current(): QueryExecutor =
-        currentTransaction(owner)?.executor ?: fallback
+        currentTransaction(owner)?.executor
+            ?: fallback
 
-    override suspend fun executeAndGetAll(query: Query): List<RowContext> =
-        current().executeAndGetAll(query)
+    override suspend fun query(
+        sql: String,
+        params: List<Any?>,
+    ): List<RowContext> = current().query(sql, params)
 
-    override suspend fun executeAndGetFirst(query: Query): RowContext? =
-        current().executeAndGetFirst(query)
+    override suspend fun queryFirst(
+        sql: String,
+        params: List<Any?>,
+    ): RowContext? = current().queryFirst(sql, params)
 
-    override suspend fun exists(query: Query): Boolean = current().exists(query)
+    override suspend fun execute(
+        sql: String,
+        params: List<Any?>,
+    ): Int = current().execute(sql, params)
 
-    override suspend fun executeAndGetCount(query: Query): Long =
-        current().executeAndGetCount(query)
-
-    override suspend fun executeUpdate(query: Query): Int = current().executeUpdate(query)
-
-    override suspend fun executeReturning(query: Query): RowContext? =
-        current().executeReturning(query)
+    override suspend fun batch(
+        sql: String,
+        batch: List<List<Any?>>,
+    ): List<List<RowContext>> = current().batch(sql, batch)
 }

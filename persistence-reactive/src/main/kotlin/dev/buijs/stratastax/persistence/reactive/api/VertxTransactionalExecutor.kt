@@ -70,7 +70,8 @@ public class VertxTransactionalExecutor(
     public fun ambientQueryExecutor(): QueryExecutor =
         AmbientQueryExecutor(pool, VertxQueryExecutor(pool, dialect, listeners))
 
-    override suspend fun isInTransaction(): Boolean = currentTransaction(pool) != null
+    override suspend fun isInTransaction(): Boolean =
+        currentTransaction(pool) != null
 
     override suspend fun <T> withTransaction(
         options: TransactionOptions,
@@ -96,16 +97,23 @@ public class VertxTransactionalExecutor(
         try {
             val executor =
                 VertxQueryExecutor(
-                    connection,
-                    dialect,
-                    listeners,
+                    client = connection,
+                    dialect = dialect,
+                    listeners = listeners,
                     transactionId = UUID.randomUUID().toString(),
                 )
+
             val transaction =
-                ActiveTransaction(owner = pool, executor = executor, readOnly = options.readOnly)
+                ActiveTransaction(
+                    owner = pool,
+                    executor = executor,
+                    readOnly = options.readOnly
+                )
+
             val element =
                 currentCoroutineContext()[TransactionContextElement]?.plus(transaction)
                     ?: TransactionContextElement(listOf(transaction))
+
             return withContext(dispatcher + element) {
                 val result =
                     try {

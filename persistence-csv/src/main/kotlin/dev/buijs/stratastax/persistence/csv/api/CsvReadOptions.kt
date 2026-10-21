@@ -19,7 +19,7 @@ package dev.buijs.stratastax.persistence.csv.api
 /**
  * How [CsvRowReader] reads a CSV file.
  *
- * @property listDelimiter separates the elements of a multi-valued cell that is not a JSON array,
+ * @property listDelimiter separates the elements of a multivalued cell that is not a JSON array,
  *   e.g. `"Catan,Carcassonne"` (quoted, so the comma does not end the cell). Elements are trimmed
  *   and empty elements are dropped.
  * @property columnNameNormalizer maps both the CSV header names and the names a mapper asks for to

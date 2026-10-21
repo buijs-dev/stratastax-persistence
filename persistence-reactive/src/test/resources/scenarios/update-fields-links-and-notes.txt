@@ -1,0 +1,26 @@
+statements: 23
+
+outcome:
+  PlaysetEntity(id=00000000-0000-0000-0000-000000000001, name=renamed, createdAt=1970-01-01T00:00Z, version=2, attributes=null, gameName=Azul, ownerName=Ada, loadoutLabel=standard 1, expansions=[Cities, Traders], notes=[Note(id=00000000-0000-0000-0000-00000000000b, text=first, edited, gameName=null, reactions=[z, c], loadoutLabel=note 1), Note(id=00000000-0000-0000-0000-00000000000d, text=third, gameName=Catan, reactions=[], loadoutLabel=note loadout)])
+  PlaysetEntity(id=00000000-0000-0000-0000-000000000001, name=renamed, createdAt=1970-01-01T00:00Z, version=2, attributes=null, gameName=Azul, ownerName=Ada, loadoutLabel=standard 1, expansions=[Cities, Traders], notes=[Note(id=00000000-0000-0000-0000-00000000000b, text=first, edited, gameName=null, reactions=[z, c], loadoutLabel=note 1), Note(id=00000000-0000-0000-0000-00000000000d, text=third, gameName=Catan, reactions=[], loadoutLabel=note loadout)])
+
+playset:
+  {public_id=00000000-0000-0000-0000-000000000001, name=renamed, attributes=null, version=2, deleted=false, game=00000000-0000-0002-0000-000000000002, owner=00000000-0000-0001-0000-000000000001, loadout=standard 1}
+
+playset_note:
+  {public_id=00000000-0000-0000-0000-00000000000b, playset=00000000-0000-0000-0000-000000000001, text=first, edited, game=null, loadout=note 1, version=1, deleted=false}
+  {public_id=00000000-0000-0000-0000-00000000000c, playset=00000000-0000-0000-0000-000000000001, text=second, game=null, loadout=null, version=1, deleted=true}
+  {public_id=00000000-0000-0000-0000-00000000000d, playset=00000000-0000-0000-0000-000000000001, text=third, game=00000000-0000-0002-0000-000000000001, loadout=note loadout, version=1, deleted=false}
+
+note_reaction:
+  {public_id=00000000-0000-0000-0000-000000000015, note_id=00000000-0000-0000-0000-00000000000b, emoji=z}
+  {public_id=00000000-0000-0000-0000-000000000017, note_id=00000000-0000-0000-0000-00000000000b, emoji=c}
+
+playset_expansion:
+  {playset=00000000-0000-0000-0000-000000000001, expansion=00000000-0000-0003-0000-000000000002}
+  {playset=00000000-0000-0000-0000-000000000001, expansion=00000000-0000-0003-0000-000000000003}
+
+loadout:
+  {label=note 1, deleted=false}
+  {label=note loadout, deleted=false}
+  {label=standard 1, deleted=false}

@@ -1,0 +1,30 @@
+statements: 19
+
+outcome:
+  OptimisticLockException: playset(00000000-0000-0000-0000-000000000001): update/delete rejected. Expected version 7 no longer matches the current row (it was modified or deleted by someone else)
+  kotlin.Unit
+  EntityNotFoundException: No row in 'playset' where id = 00000000-0000-0000-0000-000000000001
+  [(success, kotlin.Unit), (failure, EntityNotFoundException: No row in 'playset' where id = 00000000-0000-0000-0000-0000000003e7), (failure, IllegalArgumentException: Id '00000000-0000-0000-0000-000000000002' occurs more than once in this batch), (failure, IllegalArgumentException: 'playset' is versioned: an expected version is required for id '00000000-0000-0000-0000-000000000003')]
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000003, name=c, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=null, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[])], hasMore=false)
+  1
+
+playset:
+  {public_id=00000000-0000-0000-0000-000000000001, name=Friday 1, attributes={"tags": ["family"], "players": 4}, version=2, deleted=true, game=00000000-0000-0002-0000-000000000001, owner=00000000-0000-0001-0000-000000000001, loadout=standard 1}
+  {public_id=00000000-0000-0000-0000-000000000002, name=b, attributes=null, version=2, deleted=true, game=null, owner=00000000-0000-0001-0000-000000000001, loadout=null}
+  {public_id=00000000-0000-0000-0000-000000000003, name=c, attributes=null, version=1, deleted=false, game=null, owner=00000000-0000-0001-0000-000000000001, loadout=null}
+
+playset_note:
+  {public_id=00000000-0000-0000-0000-00000000000b, playset=00000000-0000-0000-0000-000000000001, text=first, game=00000000-0000-0002-0000-000000000002, loadout=note 1, version=1, deleted=true}
+  {public_id=00000000-0000-0000-0000-00000000000c, playset=00000000-0000-0000-0000-000000000001, text=second, game=null, loadout=null, version=1, deleted=true}
+
+note_reaction:
+  {public_id=00000000-0000-0000-0000-000000000015, note_id=00000000-0000-0000-0000-00000000000b, emoji=a}
+  {public_id=00000000-0000-0000-0000-000000000016, note_id=00000000-0000-0000-0000-00000000000b, emoji=b}
+
+playset_expansion:
+  {playset=00000000-0000-0000-0000-000000000001, expansion=00000000-0000-0003-0000-000000000001}
+  {playset=00000000-0000-0000-0000-000000000001, expansion=00000000-0000-0003-0000-000000000002}
+
+loadout:
+  {label=note 1, deleted=false}
+  {label=standard 1, deleted=false}

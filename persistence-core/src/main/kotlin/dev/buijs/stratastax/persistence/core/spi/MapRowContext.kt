@@ -84,7 +84,10 @@ public class MapRowContext(
         } catch (e: IllegalArgumentException) {
             throw IllegalArgumentException("Column '$name': ${e.message}", e)
         } catch (e: RuntimeException) {
-            throw IllegalArgumentException("Column '$name' with value '$value' is invalid: ${e.message}", e)
+            throw IllegalArgumentException(
+                "Column '$name' with value '$value' is invalid: ${e.message}",
+                e,
+            )
         }
     }
 

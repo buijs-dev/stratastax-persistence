@@ -23,8 +23,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
 
 /**
- * One running transaction: the [executor] bound to its connection, started by [owner] (the pool -
- * several pools never mix up each other's transactions).
+ * One running transaction: the [executor] bound to its connection,
+ * started by [owner] (the pool - several pools never mix up each other's transactions).
  */
 internal class ActiveTransaction(
     val owner: Any,
@@ -41,7 +41,7 @@ internal class ActiveTransaction(
 
 /**
  * Carries the running transactions down the coroutine. A [PropagatedContextElement], so it also
- * survives the context boundaries the ambient security identity crosses - which is what lets a
+ * survives the context boundaries the ambient security identity crosses, which is what lets a
  * nested persistence call find (and join) the transaction its caller started.
  */
 internal class TransactionContextElement(
@@ -71,7 +71,7 @@ internal class TransactionContextElement(
  * The transaction [owner] is running in the current coroutine, or `null`.
  *
  * @throws IllegalStateException when the coroutine still carries a transaction that already
- *   committed or rolled back - a coroutine launched inside a transaction that outlived it.
+ *   committed or rolled back; a coroutine launched inside a transaction that outlived it.
  */
 internal suspend fun currentTransaction(owner: Any): ActiveTransaction? {
     val transaction =

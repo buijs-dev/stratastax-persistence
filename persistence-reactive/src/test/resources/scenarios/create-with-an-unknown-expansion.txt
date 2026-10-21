@@ -1,0 +1,15 @@
+statements: 3
+
+outcome:
+  ReferencedEntityNotFoundException: No row in 'expansion' where 'public_id' = 00000000-0000-0009-0000-000000000009, referenced entity not found
+  0
+
+playset:
+
+playset_note:
+
+note_reaction:
+
+playset_expansion:
+
+loadout:

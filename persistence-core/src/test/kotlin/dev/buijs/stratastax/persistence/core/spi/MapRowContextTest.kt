@@ -38,7 +38,7 @@ class MapRowContextTest {
     private val day = LocalDate.of(2026, 1, 2)
 
     @Nested
-    inner class `scalar values` {
+    inner class ScalarValues {
 
         @Test
         fun `reads every type from its JSON representation`() {
@@ -162,7 +162,7 @@ class MapRowContextTest {
     }
 
     @Nested
-    inner class `multi-valued columns` {
+    inner class MultiValueColumns {
 
         @Test
         fun `reads JSON arrays as lists and sets`() {
@@ -238,7 +238,7 @@ class MapRowContextTest {
     }
 
     @Nested
-    inner class `JSON objects` {
+    inner class JSONObjects {
 
         @Test
         fun `reads a JSON object as a map`() {

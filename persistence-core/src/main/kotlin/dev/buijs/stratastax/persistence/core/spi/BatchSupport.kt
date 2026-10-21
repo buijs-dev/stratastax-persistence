@@ -23,7 +23,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * Like [runCatching], but for implementing batch calls: catches an [Exception] as a failed
  * [Result], and lets everything else through.
  *
- * - A [CancellationException] is rethrown: a cancelled coroutine must stop and unwind (rolling back
+ * - A [CancellationException] is rethrown: a canceled coroutine must stop and unwind (rolling back
  *   its transaction), not be recorded as one failed batch item while the rest carries on.
  * - An [Error] (e.g. [OutOfMemoryError]) is not caught: it is not a property of one input.
  */

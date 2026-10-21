@@ -17,35 +17,21 @@
 package dev.buijs.stratastax.persistence.reactive.api
 
 import dev.buijs.stratastax.persistence.core.api.TransactionOptions
-import dev.buijs.stratastax.persistence.reactive.internal.NativePlaceholderRenderer
 import dev.buijs.stratastax.persistence.reactive.spi.PersistenceDialect
-import dev.buijs.stratastax.persistence.reactive.spi.SqlRenderer
 import dev.buijs.stratastax.persistence.reactive.spi.TransactionSql
-import org.jooq.SQLDialect
-import org.jooq.conf.RenderQuotedNames
-import org.jooq.conf.Settings
 
 /**
  * PostgreSQL, through the Vert.x reactive Postgres client.
  *
- * - Identifiers are rendered unquoted, so Postgres folds them to lowercase, and result columns are
+ * - Statements use Postgres' native `$1, $2, ...` placeholders.
+ * - Identifiers are written unquoted, so Postgres folds them to lowercase, and result columns are
  *   matched case-insensitively.
- * - Bind values are rendered as Postgres' native `$1, $2, ...` placeholders.
  */
 public object PostgresDialect : PersistenceDialect {
-
-    override val sqlDialect: SQLDialect = SQLDialect.POSTGRES
-
-    override fun settings(): Settings = Settings().withRenderQuotedNames(RenderQuotedNames.NEVER)
-
-    override val renderer: SqlRenderer =
-        NativePlaceholderRenderer(prefix = "$", detachedDialect = SQLDialect.POSTGRES)
 
     override val transactions: TransactionSql = PostgresTransactionSql
 
     override fun columnKey(name: String): String = name.lowercase()
-
-    override fun isReserved(word: String): Boolean = word.lowercase() in RESERVED_WORDS
 
     private object PostgresTransactionSql : TransactionSql {
         override fun begin(options: TransactionOptions): String {
@@ -67,110 +53,4 @@ public object PostgresDialect : PersistenceDialect {
             }
         }
     }
-
-    /** Postgres' reserved keywords: these cannot be used unquoted as an alias. */
-    private val RESERVED_WORDS =
-        setOf(
-            "all",
-            "analyse",
-            "analyze",
-            "and",
-            "any",
-            "array",
-            "as",
-            "asc",
-            "asymmetric",
-            "authorization",
-            "binary",
-            "both",
-            "case",
-            "cast",
-            "check",
-            "collate",
-            "collation",
-            "column",
-            "concurrently",
-            "constraint",
-            "create",
-            "cross",
-            "current_catalog",
-            "current_date",
-            "current_role",
-            "current_schema",
-            "current_time",
-            "current_timestamp",
-            "current_user",
-            "default",
-            "deferrable",
-            "desc",
-            "distinct",
-            "do",
-            "else",
-            "end",
-            "except",
-            "false",
-            "fetch",
-            "for",
-            "foreign",
-            "freeze",
-            "from",
-            "full",
-            "grant",
-            "group",
-            "having",
-            "ilike",
-            "in",
-            "initially",
-            "inner",
-            "intersect",
-            "into",
-            "is",
-            "isnull",
-            "join",
-            "lateral",
-            "leading",
-            "left",
-            "like",
-            "limit",
-            "localtime",
-            "localtimestamp",
-            "natural",
-            "not",
-            "notnull",
-            "null",
-            "offset",
-            "on",
-            "only",
-            "or",
-            "order",
-            "outer",
-            "overlaps",
-            "placing",
-            "primary",
-            "references",
-            "returning",
-            "right",
-            "select",
-            "session_user",
-            "similar",
-            "some",
-            "symmetric",
-            "system_user",
-            "table",
-            "tablesample",
-            "then",
-            "to",
-            "trailing",
-            "true",
-            "union",
-            "unique",
-            "user",
-            "using",
-            "variadic",
-            "verbose",
-            "when",
-            "where",
-            "window",
-            "with",
-        )
 }

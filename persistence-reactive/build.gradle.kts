@@ -3,7 +3,8 @@ plugins {
 }
 
 description =
-    "jOOQ/Vert.x reactive Postgres implementation of the generic persistence API used throughout Stratastax"
+    "Vert.x reactive Postgres implementation of the generic persistence API used throughout " +
+    "Stratastax: literal SQL with numbered placeholders, search rendering and the checks of a write"
 
 @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
 kotlin {
@@ -15,7 +16,6 @@ dependencies {
     api(project(":persistence-core"))
     api(stratastax.entity)
     api(stratastax.search.core)
-    api(libs.jooq)
     api(stratastax.mutiny.vertx.pg.client)
 
     implementation(stratastax.ambient.context)
