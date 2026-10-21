@@ -1,14 +1,28 @@
 # Testing persistence code
 
-`persistence-test` asserts on the SQL your code actually runs against PostgreSQL: how many
-queries, which ones repeat (N+1), what the planner does with them, how they are grouped in
-transactions, and whether they changed since last time.
+A unit test with a fake repository tells you the service logic is right. It does not tell you that
+a page of 50 playsets is one query rather than 51, that the search uses an index, or that a
+change to the generator quietly added a statement.
+
+`persistence-test` answers those questions. It records the SQL your code actually runs against a
+real PostgreSQL, and lets you assert on it: how many queries, which ones repeat, what the planner
+does with them, and how they are grouped in transactions.
 
 ```kotlin
 testImplementation("dev.buijs.stratastax:persistence-test:<version>")
 ```
 
+```kotlin
+harness.execute { playsets.findAll(search) }
+    .assertQueryCount(1)
+    .assertNoNPlusOne()
+    .assertUsesIndex("playset_name_idx")
+```
+
 ## Set up
+
+Three pieces: a database, a recorder that sees every statement, and the harness that ties them
+together.
 
 ```kotlin
 class PlaysetQueriesTest {
@@ -18,7 +32,7 @@ class PlaysetQueriesTest {
 
         @BeforeAll @JvmStatic
         fun start() {
-            database.start()                           // skips the class without Docker
+            database.start()                           // skips the test class without Docker
             database.executeDdl("CREATE TABLE playset (...)")
         }
     }
@@ -29,41 +43,43 @@ class PlaysetQueriesTest {
 }
 ```
 
-Wire the same `QueryExecutionRecorder` into the executors the code under test uses; the harness
-reports only what ran while its block ran. Omit the analyzer when no test needs plans - analyzing
-runs every statement once more.
+Give the same recorder to the executors the code under test uses. The harness only reports what ran
+while its block ran.
+
+Leave out the plan analyzer when no test needs query plans: analyzing runs every statement a second
+time.
 
 ## Assertions
 
 ```kotlin
-val execution = harness.execute { playsets.findAll(search) }
-
-execution
+harness.execute { playsets.findAll(search) }
     .assertSuccessful()                    // the block did not throw
-    .assertQueryCount(1)                   // data statements; BEGIN/COMMIT/... are not counted
+    .assertQueryCount(1)                   // data statements only; BEGIN/COMMIT are not counted
     .assertNoNPlusOne()                    // no SQL text ran 3 or more times
-    .assertNoSequentialScans()             // plan: no full table scans
-    .assertUsesIndex("playset_name_idx")
+    .assertNoSequentialScans()             // the planner used no full table scan
     .assertMaxRowsRead(100)
     .assertQuery { usesTable("playset"); usesPredicate("name"); doesNotContain("order by") }
 ```
 
-`execute` captures what the block threw in `execution.error` instead of throwing it.
+`execute` does not throw when the block throws: the error is kept in `execution.error`, so you can
+assert on failures too.
 
-| Assertion | Checks |
-|---|---|
-| `assertSuccessful`, `assertNoFailedQueries` | the block, or no statement, failed |
-| `assertQueryCount(n)` | exactly `n` data statements ran |
-| `assertNoNPlusOne(threshold)` | no SQL text ran `threshold` times or more |
-| `assertNoSequentialScans`, `assertUsesIndex`, `assertMaxRowsRead`, `assertMaxBufferReads`, `assertExecutionTimeBelow` | the plans (needs an analyzer) |
-| `assertCommitted`, `assertRolledBack`, `assertSingleTransaction` | the transaction statements |
-| `assertQuery { ... }` | what the SQL text references |
+| Assertion                                                                                                             | Checks                                    |
+|-----------------------------------------------------------------------------------------------------------------------|-------------------------------------------|
+| `assertSuccessful`, `assertNoFailedQueries`                                                                           | the block, or no single statement, failed |
+| `assertQueryCount(n)`                                                                                                 | exactly `n` data statements ran           |
+| `assertNoNPlusOne(threshold)`                                                                                         | no SQL text ran `threshold` times or more |
+| `assertNoSequentialScans`, `assertUsesIndex`, `assertMaxRowsRead`, `assertMaxBufferReads`, `assertExecutionTimeBelow` | the query plans (needs the analyzer)      |
+| `assertCommitted`, `assertRolledBack`, `assertSingleTransaction`                                                      | the transactions                          |
+| `assertQuery { ... }`                                                                                                 | what the SQL text contains                |
 
-A failing assertion lists every statement that ran: position, transaction, operation and SQL.
+When an assertion fails, the message lists every statement that ran, with its position,
+transaction, operation and SQL, so you can see what happened without a debugger.
 
-## Scenarios
+## Scenarios: every check at once
 
-A scenario runs every check, also after one failed, and reports them together:
+A chain of assertions stops at the first failure. A scenario runs every check, also after one
+failed, and reports them together:
 
 ```kotlin
 harness.scenario("search playsets by name") {
@@ -92,38 +108,55 @@ PLAN
   ✓ rows read <= 10
 ```
 
-## Snapshots
+## Snapshots: notice when the SQL changes
 
 ```kotlin
 harness.execute { playsets.create(command) }.assertMatchesSnapshot("create playset")
 ```
 
-The first run records the SQL of every statement (and, with an analyzer, the plan shape) under
-`src/test/resources/persistence/snapshots/create playset/`. Later runs fail when a statement
-changed, was added or no longer runs - with the before and after. Commit the snapshots.
+The first run records the SQL of every statement, and with an analyzer the shape of its plan, in
+`src/test/resources/persistence/snapshots/create playset/`. Commit those files. Later runs fail when
+a statement changed, was added or no longer runs, and show the before and after.
 
-- Re-record after an intended change by setting the system property
-  `persistence.snapshots.update=true` in the test JVM - stale files are removed. With Gradle, pass
-  it on from the command line:
+This makes changes to the SQL visible in code review, for example after upgrading the code
+generator.
 
-  ```kotlin
-  tasks.test {
-      System.getProperty("persistence.snapshots.update")?.let { systemProperty("persistence.snapshots.update", it) }
-  }
-  ```
+**After an intended change**, re-record by running the tests with the system property
+`persistence.snapshots.update=true`. Stale files are removed. With Gradle, pass the property on to
+the test JVM:
 
-  and run `./gradlew test -Dpersistence.snapshots.update=true`.
-- On CI (`CI=true`) a missing snapshot fails instead of being recorded.
+```kotlin
+tasks.test {
+    System.getProperty("persistence.snapshots.update")?.let { systemProperty("persistence.snapshots.update", it) }
+}
+```
+
+```shell
+./gradlew test -Dpersistence.snapshots.update=true
+```
+
+On CI (`CI=true`) a missing snapshot fails the test instead of being recorded.
 
 ## Query plans
 
-`PostgresQueryPlanAnalyzer` runs `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` on its own JDBC
-connection, inside a transaction that is always rolled back - analyzing an `INSERT`, `UPDATE` or
-`DELETE` leaves no trace. A `QueryPlan` offers `sequentialScans()`, `indexesUsed()`, `rowsRead()`,
-`bufferReads()` and `root.renderTree()`.
+`PostgresQueryPlanAnalyzer` runs `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` for every recorded
+statement on a connection of its own, in a transaction that is always rolled back. Analyzing an
+`INSERT`, `UPDATE` or `DELETE` therefore leaves no trace.
 
-## The database
+A `QueryPlan` offers `sequentialScans()`, `indexesUsed()`, `rowsRead()`, `bufferReads()`, and
+`root.renderTree()` to print it.
 
-`PostgresTestDatabase` also offers `query(sql)` / `queryForLong(sql)` to check what was committed,
-outside the code under test, and `enableStatementLogging()` + `logs()` for the server's own view of
-which statement ran on which connection and in which transaction.
+## Looking at the database directly
+
+`PostgresTestDatabase` can also check what was committed, outside the code under test:
+
+```kotlin
+database.queryForLong("SELECT count(*) FROM playset")
+```
+
+For the server's own view, `enableStatementLogging()` and `logs()` show which statement ran on which
+connection and in which transaction.
+
+---
+
+Next: [Code generation](code-generation.md)

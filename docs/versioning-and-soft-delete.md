@@ -1,59 +1,85 @@
 # Versioning and soft delete
 
-Both are declared on the entity (its version and soft-delete fields) and written into its
-statements as literal SQL by [code generation](code-generation.md).
+Two features you switch on per entity, by giving it a version field and a soft-delete field. Code
+generation then writes them into every statement of that entity, so they apply consistently: there
+is no write path that forgets them.
 
 ## Optimistic locking
 
-With a version column:
+**The problem:** two users open the same record. Both edit it and save. Without protection, the
+second save silently overwrites the first.
 
-- a new row starts at version `1`, written as a literal in the `INSERT`;
-- every update and delete requires the caller's expected version - a missing or invalid one fails
-  with `IllegalArgumentException` before any SQL runs (`rejectedInputs`);
-- the statement matches the row on id **and** version, and sets `version = version + 1` in the same
-  statement, so two writes based on the same version can never both succeed;
-- a write that matched nothing is explained with one extra lookup (`diagnoseMiss`): a stale version
-  is an `OptimisticLockException`, a missing row an `EntityNotFoundException`.
+**The solution:** every row carries a version number. A write states which version it is based on,
+and only succeeds if the row still has that version:
 
-`SqlVersion` names the column and the type an expected version is converted to: an `If-Match`
-header of `"3"` is a valid `bigint` version.
+```kotlin
+// Example for an entity named Playset
+val playset = playsets.findById(id)                     // version 3
+playsets.update(id, rename, expectedVersion = 3)        // ok, now version 4
+playsets.update(id, recolor, expectedVersion = 3)       // OptimisticLockException: someone was first
+```
 
-Without a version column writes are last-write-wins and the expected version is ignored.
+In SQL, the check and the increment are one statement, so two writes based on the same version
+can never both succeed:
+
+```sql
+UPDATE playset
+SET ..., version = version + 1
+WHERE public_id = $1::uuid
+  AND version = $2::bigint
+```
+
+How it behaves:
+- A new row starts at version `1`.
+- An update or delete of a versioned entity **requires** an expected version. Without one, or with
+  one that is not a number, it fails with `IllegalArgumentException` before any SQL runs.
+- The expected version may be text, so an HTTP `If-Match: "3"` header can be passed on as it is.
+- When the statement matches nothing, one extra query tells the two cases apart: the row is gone
+  (`EntityNotFoundException`), or its version moved on (`OptimisticLockException`).
+
+An entity without a version field is last-write-wins, and the expected version is ignored.
 
 ## Soft delete
 
-With a soft-delete column:
+**The problem:** deleting a row loses it for good, and with it the history other rows may still
+refer to.
 
-- `delete` runs one statement that sets the column instead of deleting the row, and increments the
-  version:
+**The solution:** with a soft-delete column, `delete` marks the row instead of removing it:
 
-  ```sql
-  UPDATE playset
-  SET deleted_at = now(), version = version + 1
-  WHERE public_id = $1::uuid AND version = $2::bigint AND deleted_at IS NULL
-  RETURNING public_id
-  ```
+```sql
+UPDATE playset
+SET deleted_at = now(), version = version + 1
+WHERE public_id = $1::uuid AND version = $2::bigint AND deleted_at IS NULL
+RETURNING public_id
+```
 
-- a soft-deleted row counts as gone: updating or deleting it again fails with
-  `EntityNotFoundException`, and nothing about it changes;
-- every read hides it: the column is a default condition of the entity's `SearchSql`
-  (`playset.deleted_at IS NULL`), and `FIND_BY_ID` and `SELECT_BY_IDS` carry it as well.
+From then on the row is gone as far as the application is concerned:
 
-## What happens to the relations
+- **Every read hides it.** `deleted_at IS NULL` is a default condition of every search, and part
+  of `findById` and of the read-back after a write.
+- **Writes treat it as missing.** Updating or deleting it again fails with
+  `EntityNotFoundException`, and nothing about it changes.
 
-| Relation | Row deleted | Row soft-deleted |
-|---|---|---|
-| many-to-many links | deleted (and the linked targets, when the entity owns them) | kept - the row can be restored |
-| one-to-many children | deleted, with their own children and owned rows | kept |
-| owned one-to-one rows | deleted after the row | kept (the row still references it) |
+The row is still in the table, so it can be restored or inspected.
+
+## What happens to related rows
+
+| Related rows          | Hard delete                                                  | Soft delete                              |
+|-----------------------|--------------------------------------------------------------|------------------------------------------|
+| many-to-many links    | deleted (and the linked rows too, when the entity owns them) | kept, so the row can be restored         |
+| one-to-many children  | deleted, with their own children and owned rows              | kept                                     |
+| owned one-to-one rows | deleted after the row                                        | kept, since the row still refers to them |
 
 The same rules apply one level down: a child removed by an update takes its own children and owned
 rows with it.
 
-## Hand-written soft deletes
+Children that should be soft-deleted *together with* their parent, such as the participants of a
+match, need a statement of their own next to the delete. See the last example of
+[Writes and relations](writes-and-relations.md#writes-of-your-own).
 
-Child rows that are soft-deleted together with their parent - the participants of a match - are a
-statement next to the generated delete, in the same transaction; see the last example of
-[Writes and relations](writes-and-relations.md). The write kit's `childDiff` also restores a
-soft-deleted child when an element names it again, for an access class that keeps soft-deleted
-children.
+A child that was soft-deleted and is named again in a later update is restored rather than inserted
+a second time.
+
+---
+
+Next: [Transactions](transactions.md)

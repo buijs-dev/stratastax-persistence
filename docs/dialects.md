@@ -1,47 +1,58 @@
 # SQL dialects
 
-The statements are literal SQL, so they are written for one database: PostgreSQL. What the runtime
-itself needs to know about the database sits behind `PersistenceDialect`; `PostgresDialect` is the
-implementation in use and the default everywhere.
+The statements are literal SQL, so they are written for one database: **PostgreSQL**. This page
+lists what depends on that, and what it would take to support another database.
+
+## The dialect interface
+
+What the runtime itself needs to know about the database is small, and sits behind
+`PersistenceDialect`:
 
 ```kotlin
 public interface PersistenceDialect {
-    val transactions: TransactionSql           // BEGIN / SAVEPOINT / ... statements
-    fun columnKey(name: String): String        // how the database folds an unquoted identifier
+    val transactions: TransactionSql           // the BEGIN / SAVEPOINT / ... statements
+    fun columnKey(name: String): String        // how the database folds an unquoted name
 }
 ```
 
-`VertxQueryExecutor` and `VertxTransactionalExecutor` take the dialect as a constructor argument.
+`PostgresDialect` is the implementation, and the default of `VertxQueryExecutor` and
+`VertxTransactionalExecutor`. You only pass a dialect explicitly when you write your own.
 
-## PostgreSQL
+## How PostgreSQL is handled
 
-| Concern | PostgreSQL |
-|---|---|
-| placeholders | `$1, $2, ...`, written in the statements themselves, each with a `::type` cast |
-| transactions | `BEGIN [ISOLATION LEVEL ...][, READ ONLY]`, `SAVEPOINT`, `RELEASE SAVEPOINT`, `ROLLBACK TO SAVEPOINT` |
-| identifiers | unquoted, folded to lowercase; a result column is matched exactly first and then by its folded name, so `row.string("createdAt")` reads the column `createdat` |
-| reserved words | code generation aliases a relation named like a reserved word (`user`, `order`) so it never needs quoting |
+| Concern        | PostgreSQL                                                                                                                                             |
+|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
+| placeholders   | `$1, $2, ...`, written in the statements, each with a `::type` cast                                                                                    |
+| transactions   | `BEGIN [ISOLATION LEVEL ...][, READ ONLY]`, `SAVEPOINT`, `RELEASE SAVEPOINT`, `ROLLBACK TO SAVEPOINT`                                                  |
+| names          | unquoted names are lowercased. A result column is looked up exactly first, then lowercased, so `row.string("createdAt")` finds the column `createdat`. |
+| reserved words | code generation gives a relation named like a reserved word (`user`, `order`) another alias, so nothing needs quoting                                  |
 
 ## What is PostgreSQL-only
 
 The generated statements and the search rendering use:
 
-- `INSERT/UPDATE/DELETE ... RETURNING` - writes return their keys (MySQL has no `RETURNING`);
-- `jsonb_agg` / `jsonb_build_object` for one-to-many relations, read as JSON arrays;
-- `= ANY($1::uuid[])` with an array parameter for id lists, and array columns (`text[]`, ...);
+- `INSERT / UPDATE / DELETE ... RETURNING`, so a write returns its keys (MySQL has no `RETURNING`);
+- `jsonb_agg` and `jsonb_build_object` to read one-to-many relations as JSON arrays;
+- array parameters (`= ANY($1::uuid[])`) and array columns (`text[]`);
 - `::type` casts on every parameter;
-- `SELECT ... FOR UPDATE OF <table> [SKIP LOCKED]` (`findAllForUpdate`);
-- `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` in `persistence-test`.
+- `SELECT ... FOR UPDATE OF <table> SKIP LOCKED` for work queues;
+- `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` in the test kit.
 
-PostgreSQL-compatible databases - CockroachDB, YugabyteDB - work with `PostgresDialect` as is.
+PostgreSQL-compatible databases, such as CockroachDB and YugabyteDB, work with `PostgresDialect` as
+it is.
 
-## Another database
+## Supporting another database
 
-Another database needs both halves:
+Another database needs two things:
 
-1. A `PersistenceDialect` for its transaction statements and identifier folding, passed to the
-   executors.
-2. Statements written for it: a code generation target that emits its SQL, and a search rendering
-   (`SearchSqlWriter`) for its placeholder style and row-value comparisons.
+1. **A `PersistenceDialect`** with its transaction statements and its way of folding names, passed
+   to the executors.
+2. **SQL written for it.** A code generation target that writes its statements, and a search
+   renderer for its placeholder style and row comparisons (now `SearchSqlWriter`, internal to
+   `persistence-reactive`).
 
 Then run the integration tests against it.
+
+---
+
+Back to the [introduction](introduction.md).

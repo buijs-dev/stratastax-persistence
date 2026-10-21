@@ -1,65 +1,84 @@
 # Writes and relations
 
-The `CreateAccess`, `UpdateAccess` and `DeleteAccess` of an entity are generated: every statement
-is a `const val` of its `Sql` object, and the access class runs them in order with the write kit
-of `persistence-reactive`'s `spi` package. Every write runs in one transaction; called inside
-`UnitOfWork.transaction { }` it joins that one (in a savepoint). The examples use the engine's
-`playset`: an owner, a game referenced by public id, linked expansions; and the engine's `match`
-for one-to-many children with an owned loadout each. [Code generation](code-generation.md) shows
-the full generated files.
-
-## Create
+This page covers creating, updating and deleting an entity together with its related rows: a game
+it references, the expansions it links to, the child rows it owns.
 
 ```kotlin
-private suspend fun insert(
-    sql: QueryExecutor,
-    commands: List<CreatePlayset>,
-): List<Playset> {
-    val inserted = sql.batch(PlaysetSql.INSERT, commands.map { mapper.insert(it) })
-    val rows =
-        inserted.mapIndexed { index, result ->
-            sql.requireWritten(result, "PLAYSET", mapper.insertReferences(commands[index]))
-        }
+// Example for an entity named Playset
+val playset = playsets.create(command)
+val renamed = playsets.update(playset.id, UpdatePlayset(displayName = PatchField.Value("Saturday")), expectedVersion = playset.version)
+playsets.delete(playset.id, expectedVersion = renamed.version)
+```
 
-    val expansionsLinks = ...                      // (root key, expansion public ids) per command
-    sql.requireAllReferenced("EXPANSION", "PUBLIC_ID", PlaysetSql.EXISTING_EXPANSIONS, ...)
-    sql.batch(PlaysetSql.INSERT_EXPANSIONS, ...)
+Every write runs in **one transaction**. Called inside `unitOfWork.transaction { }`, it joins that
+transaction instead (see [Transactions](transactions.md)). Either the entity and all its related
+rows are written, or nothing is.
+
+The access classes that do this are generated: the statements are constants in `EntitySql`, and
+the access class runs them in order. [Code generation](code-generation.md) shows the full files.
+
+## Create
+Creating an entity takes up to five steps, each one statement:
+1. **Owned rows first.** A row the entity owns through a one-to-one relation 
+is inserted before the entity because the entity refers to its key.
+2. **The entity itself.** A referenced row is looked up by its public id inside the
+   insert.
+3. **Links.** The many-to-many links, after checking that every target exists.
+4. **Child rows**, and their own children.
+5. **Read back.** The new rows are read with the normal read projection, so `create` returns
+   exactly what `findById` would.
+
+The access class is just those steps, top to bottom:
+
+```kotlin
+// Example for an entity named Playset
+private suspend fun insert(sql: QueryExecutor, commands: List<CreatePlayset>): List<Playset> {
+    val inserted = sql.batch(PlaysetSql.INSERT, commands.map { mapper.insert(it) })
+    val rows = inserted.mapIndexed { index, result -> 
+        sql.requireWritten(result, "PLAYSET", mapper.insertReferences(commands[index])) 
+    }
+
+    sql.requireAllReferenced("EXPANSION", "PUBLIC_ID", PlaysetSql.EXISTING_EXPANSIONS, expansionIds)
+    sql.batch(PlaysetSql.INSERT_EXPANSIONS, links)
     return readBack(sql, rows.map { it.uuid("public_id") })
 }
 ```
 
-What `create` (and `createAll`) does, in one transaction, each step one `batch` for every command:
+### What if a reference does not exist?
+A foreign key violation would tell you *that* something is wrong, but not what, and it would abort
+the whole transaction. Instead, the insert is guarded: when the reference is missing, it simply writes
+nothing.
 
-1. insert the owned one-to-one rows (`INSERT_<RELATION>`); their keys are parameters of the root
-   insert;
-2. insert the root rows. A reference by public id is a subselect in the insert, guarded so a
-   missing referenced row writes nothing:
+```sql
+INSERT INTO playset (display_name, version, game_id)
+SELECT $1::varchar, 1, (SELECT id FROM game WHERE public_id = $2::uuid)
+WHERE EXISTS (SELECT 1 FROM game WHERE public_id = $2::uuid)
+RETURNING id, public_id
+```
 
-   ```sql
-   INSERT INTO playset (display_name, ..., version, game_id)
-   SELECT $1::varchar, ..., 1, (SELECT id FROM game WHERE public_id = $7::uuid)
-   WHERE ($7::uuid IS NULL OR EXISTS (SELECT 1 FROM game WHERE public_id = $7::uuid))
-   RETURNING id, public_id
-   ```
-
-   `requireWritten` turns a missing row into a `ReferencedEntityNotFoundException` for the first
-   reference that does not exist (`GAME_EXISTS`), and the transaction rolls back;
-3. insert the many-to-many links, after `requireAllReferenced` checked in one query that every
-   target named exists;
-4. insert the one-to-many children, and their owned rows and nested children;
-5. read the rows back with one `SELECT_BY_IDS` and map them with the row mapper, in input order
-   (`inKeyOrder`).
+`requireWritten` sees that no row came back, checks the references one by one, and throws a
+`ReferencedEntityNotFoundException` naming the missing reference. The transaction rolls back. This
+extra lookup only happens on the failing path.
 
 ## Update
+An update is a **patch**: only the fields you set are changed. Each field of an update command is
+a `PatchField`:
 
-A `PatchField` is two parameters: whether it is set, and its value. An unset field keeps its
-value; `PatchField.Value(null)` writes `NULL`.
+```kotlin
+// Example for an entity named Playset
+UpdatePlayset(
+    displayName = PatchField.Value("Saturday"),   // set to "Saturday"
+    scenario = PatchField.Value(null),            // set to NULL
+    variants = PatchField.Unset,                  // leave as it is
+)
+```
+
+In SQL, every patchable column gets a flag and a value:
 
 ```sql
 UPDATE playset
 SET display_name = CASE WHEN $3::boolean THEN $4::varchar ELSE display_name END,
-    variants = CASE WHEN $7::boolean THEN $8::text[] ELSE variants END,
-    updated_at = $9::timestamptz,
+    scenario     = CASE WHEN $5::boolean THEN $6::varchar ELSE scenario END,
     version = version + 1
 WHERE public_id = $1::uuid
   AND version = $2::bigint
@@ -67,54 +86,63 @@ WHERE public_id = $1::uuid
 RETURNING id, public_id
 ```
 
-An update that matched nothing is explained afterwards: `diagnoseMiss` runs `ACTIVE_ROW` to tell a
-missing row (`EntityNotFoundException`) from a stale version (`OptimisticLockException`), and
-`requireReferences` finds a patched reference that does not exist.
+The statement text is the same whichever fields are set, so PostgreSQL prepares it once.
 
-- **Many-to-many links** are synchronized: `DELETE_<RELATION>_EXCEPT` removes only the links no
-  longer wanted and `INSERT_<RELATION>` adds only the missing ones. A command that leaves the field
-  unset leaves the links alone; an empty set removes them all.
-- **One-to-many children** are synchronized with the command's elements, matched on their
-  identity:
-  - `<RELATION>_KEYS` reads the existing child keys; `childDiff` splits the elements into the ones
-    to update (`UPDATE_<RELATION>`), the ones to insert (`INSERT_<RELATION>_ON_UPDATE`), and the
-    child rows no element mentions any more, which are deleted (`DELETE_<RELATION>_BY_IDS`)
-    together with their owned rows;
-  - a relation marked REPLACE_ALL - such as a match's participants - removes every existing child
-    first (`DELETE_<RELATION>_OF`) and inserts every element as a new child: useful when children
-    are identified by a natural key that new rows repeat.
+When the update matches no row, the access class finds out why: is the row gone
+(`EntityNotFoundException`), or did someone else change it first (`OptimisticLockException`)? See
+[Versioning and soft delete](versioning-and-soft-delete.md).
+
+### Links
+Many-to-many links are **synchronized** with the set in the command. Only the difference is
+written: links no longer wanted are removed, missing ones added, the rest left alone.
+
+| Command               | Effect                            |
+|-----------------------|-----------------------------------|
+| `expansions` unset    | links untouched                   |
+| `expansions = {A, B}` | exactly A and B linked afterwards |
+| `expansions = {}`     | all links removed                 |
+
+### Child rows
+One-to-many children are synchronized too, matched on their id:
+- an element whose id already exists is **updated**;
+- an element with a new id is **inserted**;
+- an existing child that no element mentions anymore is **deleted**, with its own children and
+  owned rows.
+
+Some children have no stable identity of their own. A
+relation marked `REPLACE_ALL` deletes all existing children first and inserts every element as a
+new one.
 
 ## Delete
 
-A soft-deletable entity is deleted with one `SOFT_DELETE` (see
-[Versioning and soft delete](versioning-and-soft-delete.md)). A hard delete of an entity with
-relations locks the rows first (`LOCK_FOR_DELETE`, `FOR UPDATE`), removes the links and the children
-(`DELETE_<RELATION>_OF`), deletes the rows and finally removes their owned rows - and the link
-targets, when the entity owns them (`DELETE_<RELATION>_TARGETS`). Rows that reference others go
-before the rows they reference.
+```kotlin
+playsets.delete(id, expectedVersion = version)
+```
 
-## Ids
+A soft-deletable entity is marked as deleted with one statement (see
+[Versioning and soft delete](versioning-and-soft-delete.md)).
 
-A value-class id binds as its value: the generated mapper unwraps it (`id.value`). The id column is
-the column of the entity's identity field, usually `public_id`.
+A hard delete of an entity with relations cleans up in the right order:
+1. lock the rows (`FOR UPDATE`), so nothing changes them halfway;
+2. remove the links and child rows;
+3. delete the entity's row;
+4. delete the rows it owned, which could only go once nothing referred to them anymore.
 
 ## Errors
-
-| Exception | When |
-|---|---|
-| `EntityNotFoundException` | an update or delete of an id that does not exist (or is soft-deleted) |
-| `OptimisticLockException` | the expected version is stale |
-| `ReferencedEntityNotFoundException` | a referenced entity (public id) does not exist |
-| `IllegalArgumentException` | a versioned entity without (a valid) expected version; an id twice in one batch |
-| `IllegalStateException` | a written row is not visible to the read-back (a default condition hides it) - the write is rolled back |
-
 Every exception carries its details as properties (`entityName`, `id`, `expectedVersion`,
-`tableName`, `columnName`, `value`), so a caller can map it to a response.
+`tableName`, `columnName`, `value`), so you can map it to an HTTP response without parsing
+messages.
 
-## Hand-written writes
+| Exception                           | When                                                                                                 |
+|-------------------------------------|------------------------------------------------------------------------------------------------------|
+| `EntityNotFoundException`           | updating or deleting an id that does not exist (or is soft-deleted)                                  |
+| `OptimisticLockException`           | the expected version is stale                                                                        |
+| `ReferencedEntityNotFoundException` | a referenced entity does not exist                                                                   |
+| `IllegalArgumentException`          | a versioned entity without an expected version; an id twice in one batch                             |
+| `IllegalStateException`             | a written row is not visible when read back (a default condition hides it); the write is rolled back |
 
-A write of your own is a statement and its parameters, and joins the caller's transaction like
-any other:
+## Writes of your own
+A handwritten statement joins the caller's transaction like any generated one:
 
 ```kotlin
 @Language("PostgreSQL")
@@ -124,7 +152,13 @@ private const val SOFT_DELETE_PARTICIPANTS = """
     WHERE match_id = (SELECT id FROM match WHERE public_id = $1::uuid)"""
 
 unitOfWork.transaction {
-    deleteAccess.delete(matchId, ifMatch)
+    matches.delete(matchId, expectedVersion)
     executor.execute(SOFT_DELETE_PARTICIPANTS, listOf(matchId.value, OffsetDateTime.now(clock)))
 }
 ```
+
+A value-class id is passed as its value (`matchId.value`).
+
+---
+
+Next: [Batch operations](batch-operations.md)

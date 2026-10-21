@@ -1,45 +1,79 @@
 # CSV import
 
-`CsvRowReader` reads an RFC 4180 CSV file with a header row and maps every data row with a
-`RowMapper` - the same type that maps a database row. A mapper generated for an entity therefore
-imports CSV too.
+Seed data, rankings from an external source, a spreadsheet a user uploads: data often arrives as
+CSV. `CsvRowReader` reads it with a `RowMapper`, the same type that maps a database row. A mapper
+you already have for an entity can import CSV without any extra code.
 
 ```kotlin
-data class Ranking(val id: Int, val name: String, val year: Int, val isExpansion: Boolean)
+data class Ranking(
+    val id: Int, 
+    val name: String, 
+    val year: Int, 
+    val isExpansion: Boolean
+)
 
 val mapper =
     RowMapper { row ->
-        Ranking(row.integer("id"), row.string("name"), row.integer("yearPublished"), row.boolean("isExpansion"))
+        Ranking(
+            row.integer("id"), 
+            row.string("name"),
+            row.integer("yearPublished"), 
+            row.boolean("isExpansion")
+        )
     }
 
 val result = File("rankings.csv").reader().use { CsvRowReader.read(it, mapper) }
 
-result.imported          // the mapped rows, in file order
-result.skipped           // CsvSkippedRow(record = 2, reason = "Column 'id' with value 'x' could not be read: ...")
+result.imported   // the mapped rows, in file order
+result.skipped    // the rows that could not be mapped, and why
 ```
 
-## Cells
+```csv
+id,name,year_published,is_expansion
+13,Catan,1995,false
+926,Seafarers,1997,true
+```
 
-| Cell | Read as |
-|---|---|
-| empty or blank | `null` (and an empty list) |
-| `  42 ` | values are trimmed before they are parsed |
-| `true` / `false` / `1` / `0` | booleans (case-insensitive) |
-| `2026-01-02`, `2026-01-02T10:30:00Z` | `localDate`, `offsetDateTime` (ISO-8601) |
-| `"Catan, Azul"` | a list (`stringList`, `uuidList`, ...): split on the list delimiter, trimmed, empty elements dropped |
-| `"[""Catan, the game"", ""Azul""]"` | a list given as a JSON array - for elements that contain the delimiter themselves |
-| `"{""players"": 4}"` | `map(name)` - a JSON object |
-| `"[{""name"": ""Seafarers""}]"` | `objectList(name)` - a JSON array of objects, each read as a nested row |
+The file is RFC 4180 CSV with a header row: what every spreadsheet exports.
 
-A cell containing the delimiter or quotes must be quoted, and a quote inside it doubled - that is
-RFC 4180, which every spreadsheet writes.
+## A bad row does not stop the import
 
-## Column names
+A row the mapper cannot read is skipped and reported, and the import carries on:
 
-The names a mapper asks for are matched against the header through a normalizer - by default
-case-insensitively and ignoring underscores, so `year_published`, `yearPublished` and
-`YearPublished` are the same column. Two header columns that normalize to the same name are
-rejected (`CsvImportException`), rather than one silently winning.
+```kotlin
+result.skipped
+// [CsvSkippedRow(record = 2, reason = "Column 'id' with value 'x' could not be read: ...")]
+```
+
+The record number counts data rows, starting at 1. To stop at the first bad row instead, set
+`failOnInvalidRow = true`. The import then throws a `CsvImportException`.
+
+## Column names are forgiving
+
+Column names from the header are matched loosely: case is ignored, and so are underscores.
+`year_published`, `yearPublished` and `YearPublished` are the same column, so a mapper written for
+the database's camelCase aliases reads a snake_case CSV header as well.
+
+When two header columns match the same name, the import is rejected with a `CsvImportException`,
+rather than one silently winning.
+
+## What a cell can hold
+
+| Cell                                 | Read as                                                                    |
+|--------------------------------------|----------------------------------------------------------------------------|
+| empty or blank                       | `null`, or an empty list                                                   |
+| `  42 `                              | `42`: values are trimmed first                                             |
+| `true`, `false`, `1`, `0`            | booleans, in any case                                                      |
+| `2026-01-02`, `2026-01-02T10:30:00Z` | `localDate`, `offsetDateTime` (ISO-8601)                                   |
+| `"Catan, Azul"`                      | a list (`stringList`, `uuidList`, ...): split on the delimiter and trimmed |
+| `"[""Catan, the game"", ""Azul""]"`  | a list as a JSON array, for elements that contain the delimiter            |
+| `"{""players"": 4}"`                 | `map(name)`: a JSON object                                                 |
+| `"[{""name"": ""Seafarers""}]"`      | `objectList(name)`: a JSON array of objects, each read as a nested row     |
+
+A cell that contains the delimiter or quotes must be quoted, with every quote inside it doubled.
+
+JSON cells are decoded with Jackson 3 into plain maps and lists, without reflection, so this also
+works in a native image.
 
 ## Options
 
@@ -57,11 +91,10 @@ CsvRowReader.read(
 
 ## Errors
 
-- A row the mapper cannot map is skipped and reported in `skipped` with its record number (the
-  first data row is record 1) and the reason - or, with `failOnInvalidRow`, the import stops with a
-  `CsvImportException`.
-- Reading a column that is not in the header, or a value that is not of the requested type, throws
-  `CsvImportException` naming the column and the value, with the parse error as its cause.
+Asking for a column the header does not have, or a value that is not of the requested type, throws
+a `CsvImportException` that names the column and the value, with the parse error as its cause.
+Inside a mapper, that means the row is skipped and reported, unless `failOnInvalidRow` is set.
 
-JSON cells are decoded with Jackson 3 into plain maps and lists - no reflection, so this also works
-in a native image.
+---
+
+Next: [Testing](testing.md)

@@ -1,80 +1,131 @@
 # Transactions
 
-## Unit of work
+Every single write already runs in its own transaction. This page is about grouping **several**
+calls into one atomic unit, and about the rules that keep transactions fast and safe.
 
-`UnitOfWork.transaction { }` runs a block as one atomic unit. Inject the `UnitOfWork` (in Quarkus
-it is the `TransactionalExecutor` bean) and call the repositories inside the block:
+## Unit of work
 
 ```kotlin
 unitOfWork.transaction {
     val playset = playsets.create(command)
     notes.create(CreateNote(playset.id, "first"))
-}   // COMMIT - or ROLLBACK when the block throws (or is cancelled)
+}   // COMMIT, or ROLLBACK when the block throws or is cancelled
 ```
 
-Every persistence call in the block - and in any suspend function it calls - takes part in the
-transaction: reads see the block's own uncommitted writes. This works because the repositories
-use the `AmbientQueryExecutor` (`VertxTransactionalExecutor.ambientQueryExecutor()`), which runs a
-query in the calling coroutine's transaction when there is one, and on the pool otherwise.
+Inject `UnitOfWork` where you need it. In Quarkus it is the `TransactionalExecutor` bean; by hand it
+is the `VertxTransactionalExecutor` itself.
 
-## Savepoints: a failing call does not doom the unit of work
+Every persistence call inside the block takes part in the transaction, also when made from another
+suspend function the block calls. Reads inside the block see the block's own uncommitted writes.
 
-A persistence call inside a running transaction runs in a `SAVEPOINT`. When it fails, only its own
-work is undone (`ROLLBACK TO SAVEPOINT`), so the block may catch the failure and carry on:
+### How calls find the transaction
+
+There is no thread-local. The transaction is stored in the **coroutine context**, and the access
+classes get an `AmbientQueryExecutor`: for each statement, it looks in the calling coroutine's
+context for a running transaction, and falls back to the connection pool when there is none.
+
+```kotlin
+val transactional = VertxTransactionalExecutor(pool)
+val queries = transactional.ambientQueryExecutor()   // give this to the access classes
+```
+
+So the same access class works inside and outside a unit of work, without passing a connection
+around.
+
+## A failing call does not doom the transaction
+
+In PostgreSQL, once one statement of a transaction fails, every further statement is refused until
+the rollback. That would make it impossible to catch an error and carry on.
+
+So a persistence call inside a running transaction runs in a **savepoint**. When it fails, only its
+own work is undone, and the block can continue:
 
 ```kotlin
 unitOfWork.transaction {
     playsets.create(good)
-    runCatching { playsets.create(invalid) }      // undone on its own
+    runCatching { playsets.create(invalid) }   // fails, and only this create is undone
     playsets.create(alsoGood)
 }   // commits good and alsoGood
 ```
 
-PostgreSQL refuses every further statement of a transaction in which one statement failed; the
-savepoint is what makes this possible.
-
 ## Options
 
 ```kotlin
-unitOfWork.transaction(TransactionOptions(isolation = TransactionIsolation.SERIALIZABLE, readOnly = true)) { ... }
+unitOfWork.transaction(TransactionOptions(isolation = TransactionIsolation.SERIALIZABLE)) { ... }
+unitOfWork.transaction(TransactionOptions(readOnly = true)) { ... }
 unitOfWork.transaction(TransactionOptions(propagation = TransactionPropagation.REQUIRES_NEW)) { ... }
 ```
 
-| Option | Effect |
-|---|---|
-| `isolation` | `READ_COMMITTED` (PostgreSQL's default), `REPEATABLE_READ`, `SERIALIZABLE` - of a new transaction |
-| `readOnly` | a new transaction that may only read; requesting it inside a running read-write transaction is rejected |
-| `REQUIRED` (default) | join the running transaction in a savepoint, or start one |
-| `REQUIRES_NEW` | always a new transaction on its own connection, committed or rolled back on its own - e.g. an audit record that must survive the outer rollback |
+| Option               | Effect                                                                                                |
+|----------------------|-------------------------------------------------------------------------------------------------------|
+| `isolation`          | `READ_COMMITTED` (the PostgreSQL default), `REPEATABLE_READ` or `SERIALIZABLE`, for a new transaction |
+| `readOnly`           | a transaction that may only read. Asking for it inside a running read-write transaction is rejected.  |
+| `REQUIRED` (default) | join the running transaction in a savepoint, or start a new one                                       |
+| `REQUIRES_NEW`       | always a new transaction on its own connection, committed or rolled back independently                |
 
-A joined call inherits the running transaction's isolation level and access mode.
+`REQUIRES_NEW` is for work that must survive the outer transaction, such as an audit record of an
+attempt that is rolled back:
 
-## Rules and pitfalls
+```kotlin
+unitOfWork.transaction {
+    unitOfWork.transaction(TransactionOptions(propagation = TransactionPropagation.REQUIRES_NEW)) {
+        audit.create(attempt)      // committed on its own
+    }
+    payments.create(payment)       // may still roll back
+}
+```
 
-- **Keep slow work out.** A transaction holds a pooled connection for its whole duration. Do HTTP
-  calls, LLM requests and other slow work before or after the block.
-- **One coroutine at a time.** A transaction runs one statement at a time. Running statements of
-  one transaction from several coroutines at once (e.g. `async` inside the block) fails with
-  `IllegalStateException`.
-- **Do not let coroutines outlive it.** A coroutine launched inside the block that is still running
-  after the transaction ended fails fast on its next query (`IllegalStateException`) instead of
-  using a connection that went back to the pool.
-- **`REQUIRES_NEW` needs a second connection** while the outer transaction holds its own. Many
-  concurrent callers doing this with a small pool can exhaust it and wait on each other.
-- **Cancellation is safe.** When the caller is cancelled, the transaction is rolled back before
-  its connection returns to the pool - a pooled connection never carries an open transaction.
+A call that joins a running transaction inherits its isolation level and read-only mode.
+
+## Rules of thumb
+
+**Keep slow work out of the block.** A transaction holds a pooled connection for as long as it
+runs. Make HTTP calls, LLM requests and other slow work before or after it:
+
+```kotlin
+val enriched = catalog.lookup(command.gameId)   // slow: outside
+unitOfWork.transaction {
+    playsets.create(command.with(enriched))     // fast: inside
+}
+```
+
+**One statement at a time.** A transaction runs its statements one after the other. Running
+statements of one transaction from several coroutines at once, for example with `async` inside the
+block, fails with `IllegalStateException`.
+
+**Do not let coroutines outlive the block.** A coroutine launched inside the block that is still
+running after the transaction ended fails on its next query (`IllegalStateException`). It does not
+quietly use a connection that has gone back to the pool.
+
+**`REQUIRES_NEW` needs a second connection** while the outer transaction holds its own. With many
+concurrent callers and a small pool, they can end up waiting for each other.
+
+## Safety guarantees
+
+- **Cancellation is safe.** When the caller is cancelled, the transaction is rolled back before its
+  connection goes back to the pool. A pooled connection never carries an open transaction.
 - **Listeners cannot break a transaction.** A `QueryExecutionListener` that throws is logged and
   ignored.
 
 ## Context propagation
 
-The block runs on the executor's `dispatcher` (default `Dispatchers.Default`) with the caller's
-coroutine context, so context elements - e.g. the ambient security identity of
-`stratastax-ambient-context` - are visible inside it. In Quarkus, pass a dispatcher that also
-propagates the request context (`managedExecutor.asCoroutineDispatcher()`) when code in the block
-needs request-scoped beans.
+The block runs on the executor's `dispatcher` (default `Dispatchers.Default`), with the caller's
+coroutine context. Context elements, such as the security identity of `stratastax-ambient-context`,
+are therefore visible inside the block.
+
+In Quarkus, code in the block may need request-scoped beans. Then pass a dispatcher that also
+carries the request context:
+
+```kotlin
+VertxTransactionalExecutor(pool, dispatcher = managedExecutor.asCoroutineDispatcher())
+```
 
 ## Batches
 
-`createAll`, `updateAll` and `deleteAll` are not atomic outside a transaction; see
-[Batch operations](batch-operations.md#atomicity).
+`createAll`, `updateAll` and `deleteAll` are not atomic on their own: inputs that succeed are
+committed even when others fail. See [Batch operations](batch-operations.md#all-or-nothing) for
+how to make them all-or-nothing.
+
+---
+
+Next: [CSV import](csv-import.md)
