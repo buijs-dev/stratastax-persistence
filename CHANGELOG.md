@@ -7,30 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+First release of Stratastax Persistence: the generic persistence layer used throughout Stratastax.
+Repositories are generated as plain, literal SQL; this library supplies the runtime they run on.
 
-First release of Stratastax Persistence: the generic persistence API used throughout Stratastax.
-
-- `persistence-core`: the API (`ReadAccess`, `CreateAccess`, `UpdateAccess`, `DeleteAccess`,
-  `UnitOfWork`, `BatchResult`, exceptions with their details as properties) and the SPI
-  (`RowContext` with `localDate`, `RowMapper`, `CreateMapper`, `UpdateMapper`,
-  `QueryExecutionListener`, `QueryExecution`).
-- `persistence-reactive`: the jOOQ/Vert.x PostgreSQL implementation - `VertxQueryExecutor`,
-  `VertxTransactionalExecutor`, `AmbientQueryExecutor`, `PostgresDialect` and the
-  `PersistenceDialect` SPI, `JooqEntityBinding`, the `Jooq*Access` building blocks with batched
-  writes for every relation kind, and `JooqSearchQueryTranslator`.
-- `persistence-csv`: `CsvRowReader` - CSV rows through `RowContext` and `RowMapper`, with list
-  and JSON cells.
-- `persistence-test`: `PersistenceTestHarness`, query, plan and transaction assertions, scenarios,
-  snapshots, `PostgresQueryPlanAnalyzer` and `PostgresTestDatabase`.
-- Documentation under `docs/`.
+- **A storage-independent API** (`persistence-core`). Services read, create, update and delete
+  through small access interfaces and group writes in a unit of work, without knowing which
+  database or driver sits underneath. Failures surface as typed exceptions that carry their
+  details, and the SPI lets a backend map rows and report executed queries.
+- **Reactive PostgreSQL execution** (`persistence-reactive`). Runs the generated SQL on Vert.x,
+  inside or outside a transaction, and sends batches in a single round trip. Common Kotlin types
+  (JSON maps, URIs, enums, instants) are bound without extra code.
+- **Search with keyset pagination.** Filtering, sorting, cursor-based paging and row locking are
+  composed from generated SQL fragments, so search queries stay predictable and index-friendly.
+- **Safe writes.** Shared building blocks for the checks every write needs: optimistic versioning,
+  verifying that referenced rows exist, detecting rows that were not written, and syncing child
+  collections. Generated code relies on these instead of repeating them per entity; see
+  `docs/code-generation.md`.
+- **CSV import** (`persistence-csv`). Reads CSV files through the same row mappers as the database,
+  so seed and import data reuse the existing mapping, including list and JSON cells.
+- **Test support** (`persistence-test`). A throwaway PostgreSQL database and a harness to assert on
+  executed queries, query plans and transactions, plus scenarios and snapshots for repository
+  tests.
+- **Documentation** under `docs/`, covering architecture, the SQL-first design, code generation,
+  reading and search, writes and relations, batches, transactions, versioning and soft delete,
+  dialects, CSV import and testing.
 
 ### Notes
-
 - Explicit API mode and an API dump (`./gradlew updateKotlinAbi`) in every module.
 - JSON is handled with Jackson 3 (`tools.jackson`); no Jackson 2 runtime comes in through this
   library, except Vert.x 4's own `jackson-core` in `persistence-reactive`.
-- The Vert.x, Mutiny and PostgreSQL driver versions are pinned to the ones of Quarkus 3.38; the
-  library no longer imports the Quarkus BOM.
+- The Vert.x, Mutiny and PostgreSQL driver versions are pinned to the ones of Quarkus 3.38.
 
 See [README.md](https://github.com/buijs-dev/stratastax-persistence/blob/main/README.md) and
 [docs/](https://github.com/buijs-dev/stratastax-persistence/tree/main/docs) for examples.
