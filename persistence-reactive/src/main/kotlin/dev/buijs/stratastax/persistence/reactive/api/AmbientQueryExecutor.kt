@@ -1,0 +1,59 @@
+/**
+ * Copyright (c) 2021 - 2026 Buijs Software
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ * WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+package dev.buijs.stratastax.persistence.reactive.api
+
+import dev.buijs.stratastax.persistence.core.spi.RowContext
+import dev.buijs.stratastax.persistence.reactive.internal.currentTransaction
+import dev.buijs.stratastax.persistence.reactive.spi.QueryExecutor
+
+/**
+ * A [QueryExecutor] that runs every query inside the transaction the calling coroutine is in
+ * (one started by a [VertxTransactionalExecutor] over [owner]) or on [fallback] when there is none.
+ *
+ * This is the executor the access classes get: a read then sees, and takes part in, the caller's
+ * [dev.buijs.stratastax.persistence.core.api.UnitOfWork.transaction] instead of running on another
+ * connection in autocommit mode. Create it with [VertxTransactionalExecutor.ambientQueryExecutor].
+ */
+public class AmbientQueryExecutor(
+    private val owner: Any,
+    private val fallback: QueryExecutor,
+) : QueryExecutor {
+
+    private suspend fun current(): QueryExecutor =
+        currentTransaction(owner)?.executor
+            ?: fallback
+
+    override suspend fun query(
+        sql: String,
+        params: List<Any?>,
+    ): List<RowContext> = current().query(sql, params)
+
+    override suspend fun queryFirst(
+        sql: String,
+        params: List<Any?>,
+    ): RowContext? = current().queryFirst(sql, params)
+
+    override suspend fun execute(
+        sql: String,
+        params: List<Any?>,
+    ): Int = current().execute(sql, params)
+
+    override suspend fun batch(
+        sql: String,
+        batch: List<List<Any?>>,
+    ): List<List<RowContext>> = current().batch(sql, batch)
+}

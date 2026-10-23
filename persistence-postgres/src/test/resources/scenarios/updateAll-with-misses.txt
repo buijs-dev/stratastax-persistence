@@ -1,0 +1,17 @@
+statements: 7
+
+outcome:
+  [(success, PlaysetEntity(id=00000000-0000-0000-0000-000000000001, name=a2, createdAt=1970-01-01T00:00Z, version=2, attributes=null, gameName=null, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[])), (failure, OptimisticLockException: playset(00000000-0000-0000-0000-000000000002): update/delete rejected. Expected version 9 no longer matches the current row (it was modified or deleted by someone else)), (failure, IllegalArgumentException: Id '00000000-0000-0000-0000-000000000001' occurs more than once in this batch), (failure, EntityNotFoundException: No row in 'playset' where id = 00000000-0000-0000-0000-0000000003e7)]
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000001, name=a2, createdAt=1970-01-01T00:00Z, version=2, attributes=null, gameName=null, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[]), PlaysetEntity(id=00000000-0000-0000-0000-000000000002, name=b, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=null, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[])], hasMore=false)
+
+playset:
+  {public_id=00000000-0000-0000-0000-000000000001, name=a2, attributes=null, version=2, deleted=false, game=null, owner=00000000-0000-0001-0000-000000000001, loadout=null}
+  {public_id=00000000-0000-0000-0000-000000000002, name=b, attributes=null, version=1, deleted=false, game=null, owner=00000000-0000-0001-0000-000000000001, loadout=null}
+
+playset_note:
+
+note_reaction:
+
+playset_expansion:
+
+loadout:

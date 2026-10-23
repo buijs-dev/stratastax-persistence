@@ -1,0 +1,14 @@
+name: Prepare Release
+
+# A v* tag on develop updates the changelog on develop and opens the release pull request to main.
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    uses: buijs-dev/ci-templates/.github/workflows/prepare-release.yml@main

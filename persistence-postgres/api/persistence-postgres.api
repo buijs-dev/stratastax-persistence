@@ -1,0 +1,8 @@
+public final class dev/buijs/stratastax/persistence/postgres/api/PostgresDialect : dev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect {
+	public static final field INSTANCE Ldev/buijs/stratastax/persistence/postgres/api/PostgresDialect;
+	public fun bindValue (Ljava/lang/Object;)Ljava/lang/Object;
+	public fun columnKey (Ljava/lang/String;)Ljava/lang/String;
+	public fun getSearch ()Ldev/buijs/stratastax/persistence/reactive/spi/SearchSyntax;
+	public fun getTransactions ()Ldev/buijs/stratastax/persistence/reactive/spi/TransactionSql;
+}
+

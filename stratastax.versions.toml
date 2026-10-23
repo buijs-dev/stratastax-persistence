@@ -1,0 +1,19 @@
+[versions]
+ambient-context = "1.0.0"
+entity = "1.0.0"
+search = "1.0.0"
+jackson3 = "3.2.3"
+mutiny-vertx = "3.23.0"
+postgresql = "42.7.13"
+opentelemetry = "1.62.0"
+
+[libraries]
+ambient-context = { group = "dev.buijs.stratastax", name = "ambient-context", version.ref = "ambient-context" }
+entity = { group = "dev.buijs.stratastax", name = "entity", version.ref = "entity" }
+search-core = { group = "dev.buijs.stratastax", name = "search-core", version.ref = "search" }
+jackson3-databind = { group = "tools.jackson.core", name = "jackson-databind", version.ref = "jackson3" }
+mutiny-vertx-sql-client = { group = "io.smallrye.reactive", name = "smallrye-mutiny-vertx-sql-client", version.ref = "mutiny-vertx" }
+mutiny-vertx-pg-client = { group = "io.smallrye.reactive", name = "smallrye-mutiny-vertx-pg-client", version.ref = "mutiny-vertx" }
+postgresql = { group = "org.postgresql", name = "postgresql", version.ref = "postgresql" }
+opentelemetry-api = { group = "io.opentelemetry", name = "opentelemetry-api", version.ref = "opentelemetry" }
+opentelemetry-sdk-testing = { group = "io.opentelemetry", name = "opentelemetry-sdk-testing", version.ref = "opentelemetry" }

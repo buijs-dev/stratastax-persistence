@@ -1,0 +1,17 @@
+name: Publish Release
+
+# Merging the release pull request (develop into main) publishes the release.
+on:
+  pull_request:
+    types: [ closed ]
+    branches: [ main ]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  publish:
+    uses: buijs-dev/ci-templates/.github/workflows/publish-release.yml@main
+    with:
+      root-dir: ${{ vars.ROOT_DIR || '.' }}

@@ -1,0 +1,7 @@
+# Documentation of this repository on docs.stratastax.dev (see the README of stratastax-docs).
+# index.md is the component page, /technical/components/persistence/; other *.md here are pages below it.
+id: persistence
+title: Persistence
+summary: Typed reads, search and writes on the reactive PostgreSQL client
+group: backend-libraries
+order: 20

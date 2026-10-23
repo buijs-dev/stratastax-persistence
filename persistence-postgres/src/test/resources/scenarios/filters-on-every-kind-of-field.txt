@@ -1,0 +1,49 @@
+statements: 38
+
+outcome:
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000002, name=board, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=Azul, ownerName=Ada, loadoutLabel=null, expansions=[Cities], notes=[])], hasMore=false)
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000003, name=card, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=null, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[])], hasMore=false)
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000001, name=Friday 1, createdAt=1970-01-01T00:00Z, version=1, attributes={tags=[family], players=4}, gameName=Catan, ownerName=Ada, loadoutLabel=standard 1, expansions=[Seafarers, Cities], notes=[Note(id=00000000-0000-0000-0000-00000000000b, text=first, gameName=Azul, reactions=[a, b], loadoutLabel=note 1), Note(id=00000000-0000-0000-0000-00000000000c, text=second, gameName=null, reactions=[], loadoutLabel=null)]), PlaysetEntity(id=00000000-0000-0000-0000-000000000003, name=card, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=null, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[])], hasMore=false)
+  Page(items=[], hasMore=false)
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000002, name=board, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=Azul, ownerName=Ada, loadoutLabel=null, expansions=[Cities], notes=[])], hasMore=false)
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000001, name=Friday 1, createdAt=1970-01-01T00:00Z, version=1, attributes={tags=[family], players=4}, gameName=Catan, ownerName=Ada, loadoutLabel=standard 1, expansions=[Seafarers, Cities], notes=[Note(id=00000000-0000-0000-0000-00000000000b, text=first, gameName=Azul, reactions=[a, b], loadoutLabel=note 1), Note(id=00000000-0000-0000-0000-00000000000c, text=second, gameName=null, reactions=[], loadoutLabel=null)])], hasMore=false)
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000001, name=Friday 1, createdAt=1970-01-01T00:00Z, version=1, attributes={tags=[family], players=4}, gameName=Catan, ownerName=Ada, loadoutLabel=standard 1, expansions=[Seafarers, Cities], notes=[Note(id=00000000-0000-0000-0000-00000000000b, text=first, gameName=Azul, reactions=[a, b], loadoutLabel=note 1), Note(id=00000000-0000-0000-0000-00000000000c, text=second, gameName=null, reactions=[], loadoutLabel=null)]), PlaysetEntity(id=00000000-0000-0000-0000-000000000002, name=board, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=Azul, ownerName=Ada, loadoutLabel=null, expansions=[Cities], notes=[])], hasMore=false)
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000001, name=Friday 1, createdAt=1970-01-01T00:00Z, version=1, attributes={tags=[family], players=4}, gameName=Catan, ownerName=Ada, loadoutLabel=standard 1, expansions=[Seafarers, Cities], notes=[Note(id=00000000-0000-0000-0000-00000000000b, text=first, gameName=Azul, reactions=[a, b], loadoutLabel=note 1), Note(id=00000000-0000-0000-0000-00000000000c, text=second, gameName=null, reactions=[], loadoutLabel=null)]), PlaysetEntity(id=00000000-0000-0000-0000-000000000002, name=board, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=Azul, ownerName=Ada, loadoutLabel=null, expansions=[Cities], notes=[])], hasMore=false)
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000001, name=Friday 1, createdAt=1970-01-01T00:00Z, version=1, attributes={tags=[family], players=4}, gameName=Catan, ownerName=Ada, loadoutLabel=standard 1, expansions=[Seafarers, Cities], notes=[Note(id=00000000-0000-0000-0000-00000000000b, text=first, gameName=Azul, reactions=[a, b], loadoutLabel=note 1), Note(id=00000000-0000-0000-0000-00000000000c, text=second, gameName=null, reactions=[], loadoutLabel=null)])], hasMore=false)
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000001, name=Friday 1, createdAt=1970-01-01T00:00Z, version=1, attributes={tags=[family], players=4}, gameName=Catan, ownerName=Ada, loadoutLabel=standard 1, expansions=[Seafarers, Cities], notes=[Note(id=00000000-0000-0000-0000-00000000000b, text=first, gameName=Azul, reactions=[a, b], loadoutLabel=note 1), Note(id=00000000-0000-0000-0000-00000000000c, text=second, gameName=null, reactions=[], loadoutLabel=null)])], hasMore=false)
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000002, name=board, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=Azul, ownerName=Ada, loadoutLabel=null, expansions=[Cities], notes=[])], hasMore=false)
+  Page(items=[], hasMore=false)
+  1
+  1
+  2
+  0
+  1
+  1
+  2
+  2
+  1
+  1
+  1
+  0
+
+playset:
+  {public_id=00000000-0000-0000-0000-000000000001, name=Friday 1, attributes={"tags": ["family"], "players": 4}, version=1, deleted=false, game=00000000-0000-0002-0000-000000000001, owner=00000000-0000-0001-0000-000000000001, loadout=standard 1}
+  {public_id=00000000-0000-0000-0000-000000000002, name=board, attributes=null, version=1, deleted=false, game=00000000-0000-0002-0000-000000000002, owner=00000000-0000-0001-0000-000000000001, loadout=null}
+  {public_id=00000000-0000-0000-0000-000000000003, name=card, attributes=null, version=1, deleted=false, game=null, owner=00000000-0000-0001-0000-000000000001, loadout=null}
+
+playset_note:
+  {public_id=00000000-0000-0000-0000-00000000000b, playset=00000000-0000-0000-0000-000000000001, text=first, game=00000000-0000-0002-0000-000000000002, loadout=note 1, version=1, deleted=false}
+  {public_id=00000000-0000-0000-0000-00000000000c, playset=00000000-0000-0000-0000-000000000001, text=second, game=null, loadout=null, version=1, deleted=false}
+
+note_reaction:
+  {public_id=00000000-0000-0000-0000-000000000015, note_id=00000000-0000-0000-0000-00000000000b, emoji=a}
+  {public_id=00000000-0000-0000-0000-000000000016, note_id=00000000-0000-0000-0000-00000000000b, emoji=b}
+
+playset_expansion:
+  {playset=00000000-0000-0000-0000-000000000001, expansion=00000000-0000-0003-0000-000000000001}
+  {playset=00000000-0000-0000-0000-000000000001, expansion=00000000-0000-0003-0000-000000000002}
+  {playset=00000000-0000-0000-0000-000000000002, expansion=00000000-0000-0003-0000-000000000002}
+
+loadout:
+  {label=note 1, deleted=false}
+  {label=standard 1, deleted=false}

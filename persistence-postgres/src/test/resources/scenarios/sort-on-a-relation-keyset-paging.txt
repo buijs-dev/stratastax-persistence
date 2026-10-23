@@ -1,0 +1,25 @@
+statements: 17
+
+outcome:
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000001, name=a, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=Catan, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[]), PlaysetEntity(id=00000000-0000-0000-0000-000000000002, name=b, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=null, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[])], hasMore=true)
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000003, name=c, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=Azul, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[]), PlaysetEntity(id=00000000-0000-0000-0000-000000000004, name=d, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=null, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[])], hasMore=true)
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000002, name=b, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=null, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[]), PlaysetEntity(id=00000000-0000-0000-0000-000000000003, name=c, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=Azul, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[])], hasMore=true)
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000003, name=c, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=Azul, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[]), PlaysetEntity(id=00000000-0000-0000-0000-000000000001, name=a, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=Catan, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[])], hasMore=true)
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000005, name=e, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=Catan, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[]), PlaysetEntity(id=00000000-0000-0000-0000-000000000002, name=b, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=null, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[])], hasMore=true)
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000004, name=d, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=null, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[])], hasMore=false)
+  Page(items=[PlaysetEntity(id=00000000-0000-0000-0000-000000000005, name=e, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=Catan, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[]), PlaysetEntity(id=00000000-0000-0000-0000-000000000002, name=b, createdAt=1970-01-01T00:00Z, version=1, attributes=null, gameName=null, ownerName=Ada, loadoutLabel=null, expansions=[], notes=[])], hasMore=true)
+
+playset:
+  {public_id=00000000-0000-0000-0000-000000000001, name=a, attributes=null, version=1, deleted=false, game=00000000-0000-0002-0000-000000000001, owner=00000000-0000-0001-0000-000000000001, loadout=null}
+  {public_id=00000000-0000-0000-0000-000000000002, name=b, attributes=null, version=1, deleted=false, game=null, owner=00000000-0000-0001-0000-000000000001, loadout=null}
+  {public_id=00000000-0000-0000-0000-000000000003, name=c, attributes=null, version=1, deleted=false, game=00000000-0000-0002-0000-000000000002, owner=00000000-0000-0001-0000-000000000001, loadout=null}
+  {public_id=00000000-0000-0000-0000-000000000004, name=d, attributes=null, version=1, deleted=false, game=null, owner=00000000-0000-0001-0000-000000000001, loadout=null}
+  {public_id=00000000-0000-0000-0000-000000000005, name=e, attributes=null, version=1, deleted=false, game=00000000-0000-0002-0000-000000000001, owner=00000000-0000-0001-0000-000000000001, loadout=null}
+
+playset_note:
+
+note_reaction:
+
+playset_expansion:
+
+loadout:

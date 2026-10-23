@@ -1,0 +1,13 @@
+name: Publish Snapshot
+
+on:
+  push:
+    branches: [ develop ]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    uses: buijs-dev/ci-templates/.github/workflows/publish-snapshot.yml@main
+    with:
+      root-dir: ${{ vars.ROOT_DIR || '.' }}
+    secrets: inherit
