@@ -3,7 +3,8 @@ plugins {
 }
 
 description =
-    "Test harness for asserting on the queries generated persistence code actually runs against PostgreSQL"
+    "Test harness for asserting on the queries generated persistence code actually runs, " +
+    "independent of the database; persistence-postgres-test adds PostgreSQL"
 
 @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
 kotlin {
@@ -12,18 +13,12 @@ kotlin {
 }
 
 dependencies {
-    // Exposed to consumers: TestExecution carries core's QueryExecution, and PostgresTestDatabase
-    // exposes Testcontainers' PostgreSQLContainer.
+    // Exposed to consumers: TestExecution carries core's QueryExecution.
     api(project(":persistence-core"))
-    api(libs.testcontainers.postgresql)
 
-    implementation(libs.testcontainers.junit)
-    implementation(libs.junit.api)
     implementation(libs.kotlinx.coroutines.core)
-    implementation(stratastax.postgresql)
-    // EXPLAIN (FORMAT JSON) parsing; Jackson 3 only - see the README's dependency notes.
-    implementation(stratastax.jackson3.databind)
 
     testImplementation(libs.bundles.test)
     testImplementation(project(":persistence-postgres"))
+    testImplementation(project(":persistence-postgres-test"))
 }

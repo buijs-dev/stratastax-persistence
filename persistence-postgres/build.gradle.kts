@@ -16,7 +16,7 @@ dependencies {
     api(project(":persistence-reactive"))
     api(stratastax.mutiny.vertx.pg.client)
 
-    testImplementation(project(":persistence-test"))
+    testImplementation(project(":persistence-postgres-test"))
     testImplementation(libs.bundles.test)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.testcontainers.junit)

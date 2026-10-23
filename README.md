@@ -43,7 +43,9 @@ matched nothing.
 | `persistence-reactive` | The Vert.x implementation: executors, transactions, search rendering (`SearchSql`) and the write kit generated code uses. Database-neutral: SQL syntax comes from a `PersistenceDialect`.        | `persistence-core`, Vert.x Mutiny SQL client      |
 | `persistence-postgres` | `PostgresDialect`: the PostgreSQL dialect. Another database is a module like it, which can live in another repository; see [docs/dialects.md](docs/dialects.md).                                 | `persistence-reactive`, Vert.x Mutiny Postgres client |
 | `persistence-csv`      | `CsvRowReader`: CSV rows through `RowContext`/`RowMapper`.                                                                                                                                       | `persistence-core`, commons-csv, Jackson 3        |
-| `persistence-test`     | `PersistenceTestHarness`, query assertions, query plans, snapshots and `PostgresTestDatabase`. Test scope only.                                                                                  | `persistence-core`, Testcontainers, Jackson 3     |
+| `persistence-observability` | `OpenTelemetryQueryListener`: every statement as a span under the HTTP request that caused it, grouped per transaction, and a per-request query profile. Production scope; see [docs/observability.md](docs/observability.md). | `persistence-core`, `ambient-context`, OpenTelemetry API |
+| `persistence-test`     | `PersistenceTestHarness`, query assertions, query plans and snapshots, independent of the database. Test scope only.                                                                            | `persistence-core`                                |
+| `persistence-postgres-test` | `PostgresTestDatabase` (Testcontainers) and `PostgresQueryPlanAnalyzer` (`EXPLAIN`) for `persistence-test`. Test scope only.                                                                | `persistence-test`, Testcontainers, Jackson 3     |
 
 Every module separates what you call (`api`), what you implement or configure (`spi`) and its own
 internals (`internal`, not visible outside the module). See [docs/architecture.md](docs/architecture.md).
@@ -55,8 +57,9 @@ dependencies {
     implementation("dev.buijs.stratastax:persistence-core:<version>")
     implementation("dev.buijs.stratastax:persistence-postgres:<version>") // brings persistence-reactive
     implementation("dev.buijs.stratastax:persistence-csv:<version>") // when importing CSV
+    implementation("dev.buijs.stratastax:persistence-observability:<version>") // query tracing
 
-    testImplementation("dev.buijs.stratastax:persistence-test:<version>")
+    testImplementation("dev.buijs.stratastax:persistence-postgres-test:<version>") // brings persistence-test
 }
 ```
 

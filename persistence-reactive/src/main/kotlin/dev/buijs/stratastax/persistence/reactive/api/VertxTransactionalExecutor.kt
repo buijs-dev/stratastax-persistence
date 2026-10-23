@@ -31,6 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
+import java.time.Clock
 import java.util.UUID
 import kotlin.coroutines.CoroutineContext
 
@@ -54,13 +55,15 @@ import kotlin.coroutines.CoroutineContext
  *
  * The running transaction travels in the coroutine context, matched to [pool] by identity. The
  * block runs on [dispatcher]: pass a dispatcher that propagates the request context (e.g. a
- * MicroProfile `ManagedExecutor`) when code inside the block needs it.
+ * MicroProfile `ManagedExecutor`) when code inside the block needs it. [clock] stamps the start of
+ * every reported statement, see [VertxQueryExecutor].
  */
 public class VertxTransactionalExecutor(
     private val pool: Pool,
     private val dialect: PersistenceDialect,
     private val listeners: List<QueryExecutionListener> = emptyList(),
     private val dispatcher: CoroutineContext = Dispatchers.Default,
+    private val clock: Clock = Clock.systemUTC(),
 ) : TransactionalExecutor {
 
     /**
@@ -68,7 +71,7 @@ public class VertxTransactionalExecutor(
      * transaction when there is one, and runs on the pool otherwise.
      */
     public fun ambientQueryExecutor(): QueryExecutor =
-        AmbientQueryExecutor(pool, VertxQueryExecutor(pool, dialect, listeners))
+        AmbientQueryExecutor(pool, VertxQueryExecutor(pool, dialect, listeners, clock = clock))
 
     override suspend fun isInTransaction(): Boolean = currentTransaction(pool) != null
 
@@ -100,6 +103,7 @@ public class VertxTransactionalExecutor(
                     dialect = dialect,
                     listeners = listeners,
                     transactionId = UUID.randomUUID().toString(),
+                    clock = clock,
                 )
 
             val transaction =

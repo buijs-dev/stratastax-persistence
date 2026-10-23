@@ -33,6 +33,8 @@ import io.vertx.mutiny.sqlclient.SqlClient
 import io.vertx.mutiny.sqlclient.Tuple
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import java.time.Clock
+import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
@@ -52,6 +54,8 @@ private val log = KotlinLogging.logger {}
  * Bound to a transaction (a [transactionId]), the executor runs one query at a time and rejects a
  * query started while another is still running: a transaction must not be used from several
  * coroutines concurrently.
+ *
+ * [clock] stamps [QueryExecution.startedAt]; the duration is measured on a monotonic clock.
  */
 @Suppress("SqlSourceToSinkFlow")
 public class VertxQueryExecutor(
@@ -59,6 +63,7 @@ public class VertxQueryExecutor(
     private val dialect: PersistenceDialect,
     private val listeners: List<QueryExecutionListener> = emptyList(),
     private val transactionId: String? = null,
+    private val clock: Clock = Clock.systemUTC(),
 ) : QueryExecutor {
 
     private val running = AtomicInteger()
@@ -156,6 +161,7 @@ public class VertxQueryExecutor(
         batchSize: Int = 1,
         run: suspend () -> RowSet<Row>,
     ): RowSet<Row> {
+        val startedAt = clock.instant()
         val started = TimeSource.Monotonic.markNow()
         val rows =
             try {
@@ -164,19 +170,29 @@ public class VertxQueryExecutor(
                 // Reported even when canceled: the statement may well have reached the database.
                 withContext(
                     NonCancellable,
-                ) { report(rendered, started.elapsedNow(), rowCount = null, error = e, batchSize) }
+                ) {
+                    report(
+                        rendered,
+                        startedAt,
+                        started.elapsedNow(),
+                        rowCount = null,
+                        error = e,
+                        batchSize,
+                    )
+                }
 
                 throw e
             }
 
         val rowCount = resultsOf(rows).take(batchSize).sumOf { it.rowCount() }
 
-        report(rendered, started.elapsedNow(), rowCount, error = null, batchSize)
+        report(rendered, startedAt, started.elapsedNow(), rowCount, error = null, batchSize)
         return rows
     }
 
     private suspend fun report(
         rendered: RenderedQuery,
+        startedAt: Instant,
         duration: Duration,
         rowCount: Int?,
         error: Throwable?,
@@ -188,6 +204,7 @@ public class VertxQueryExecutor(
                 query = rendered,
                 operation = QueryOperation.of(rendered.sql),
                 duration = duration,
+                startedAt = startedAt,
                 rowCount = rowCount,
                 transactionId = transactionId,
                 error = error,

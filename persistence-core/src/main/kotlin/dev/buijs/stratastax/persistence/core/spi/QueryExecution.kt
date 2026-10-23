@@ -16,6 +16,7 @@
  */
 package dev.buijs.stratastax.persistence.core.spi
 
+import java.time.Instant
 import kotlin.time.Duration
 
 /** Receives every statement that ran against the database, see [QueryExecution]. */
@@ -39,6 +40,8 @@ public data class RenderedQuery(
  * every statement, including transaction control (`BEGIN`, `SAVEPOINT`, `COMMIT`, ...) and
  * statements that failed.
  *
+ * @property startedAt the wall-clock time the statement was sent, so a statement can be placed on a
+ *   timeline (a trace span, a request profile); [duration] is measured on a monotonic clock.
  * @property transactionId correlates the statements of one transaction; `null` for a statement that
  *   ran outside any transaction (autocommit).
  * @property rowCount the number of rows returned or affected; `null` when the statement failed.
@@ -51,6 +54,7 @@ public data class QueryExecution(
     val query: RenderedQuery,
     val operation: QueryOperation,
     val duration: Duration,
+    val startedAt: Instant,
     val rowCount: Int?,
     val transactionId: String? = null,
     val error: Throwable? = null,

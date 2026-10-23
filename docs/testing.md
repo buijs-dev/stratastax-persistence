@@ -4,12 +4,13 @@ A unit test with a fake repository tells you the service logic is right. It does
 a page of 50 playsets is one query rather than 51, that the search uses an index, or that a
 change to the generator quietly added a statement.
 
-`persistence-test` answers those questions. It records the SQL your code actually runs against a
-real PostgreSQL, and lets you assert on it: how many queries, which ones repeat, what the planner
-does with them, and how they are grouped in transactions.
+`persistence-test` answers those questions. It records the SQL your code actually runs, and lets
+you assert on it: how many queries, which ones repeat, what the planner does with them, and how
+they are grouped in transactions. It is independent of the database; `persistence-postgres-test`
+adds a real PostgreSQL (`PostgresTestDatabase`) and its planner (`PostgresQueryPlanAnalyzer`).
 
 ```kotlin
-testImplementation("dev.buijs.stratastax:persistence-test:<version>")
+testImplementation("dev.buijs.stratastax:persistence-postgres-test:<version>") // brings persistence-test
 ```
 
 ```kotlin

@@ -16,7 +16,7 @@
  */
 package dev.buijs.stratastax.persistence.postgres.testfixtures
 
-import dev.buijs.stratastax.persistence.test.api.PostgresTestDatabase
+import dev.buijs.stratastax.persistence.postgres.test.api.PostgresTestDatabase
 import io.vertx.mutiny.pgclient.PgBuilder
 import io.vertx.mutiny.sqlclient.Pool
 import io.vertx.pgclient.PgConnectOptions

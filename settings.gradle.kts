@@ -41,5 +41,7 @@ plugins {
 include(":persistence-core")
 include(":persistence-csv")
 include(":persistence-postgres")
+include(":persistence-postgres-test")
+include(":persistence-observability")
 include(":persistence-reactive")
 include(":persistence-test")

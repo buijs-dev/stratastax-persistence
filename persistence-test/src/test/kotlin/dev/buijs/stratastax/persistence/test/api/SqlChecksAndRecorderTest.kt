@@ -25,6 +25,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import java.time.Instant
 import kotlin.time.Duration.Companion.ZERO
 
 /** The SQL text checks, and the recorder under concurrent reports. */
@@ -54,6 +55,7 @@ class SqlChecksAndRecorderTest {
                     query = RenderedQuery("select 1", emptyList()),
                     operation = QueryOperation.SELECT,
                     duration = ZERO,
+                    startedAt = Instant.EPOCH,
                     rowCount = 1,
                 )
 

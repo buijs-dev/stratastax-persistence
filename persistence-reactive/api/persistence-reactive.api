@@ -7,8 +7,8 @@ public final class dev/buijs/stratastax/persistence/reactive/api/AmbientQueryExe
 }
 
 public final class dev/buijs/stratastax/persistence/reactive/api/VertxQueryExecutor : dev/buijs/stratastax/persistence/reactive/spi/QueryExecutor {
-	public fun <init> (Lio/vertx/mutiny/sqlclient/SqlClient;Ldev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect;Ljava/util/List;Ljava/lang/String;)V
-	public synthetic fun <init> (Lio/vertx/mutiny/sqlclient/SqlClient;Ldev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect;Ljava/util/List;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lio/vertx/mutiny/sqlclient/SqlClient;Ldev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect;Ljava/util/List;Ljava/lang/String;Ljava/time/Clock;)V
+	public synthetic fun <init> (Lio/vertx/mutiny/sqlclient/SqlClient;Ldev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect;Ljava/util/List;Ljava/lang/String;Ljava/time/Clock;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun batch (Ljava/lang/String;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun execute (Ljava/lang/String;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun query (Ljava/lang/String;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -16,8 +16,8 @@ public final class dev/buijs/stratastax/persistence/reactive/api/VertxQueryExecu
 }
 
 public final class dev/buijs/stratastax/persistence/reactive/api/VertxTransactionalExecutor : dev/buijs/stratastax/persistence/reactive/spi/TransactionalExecutor {
-	public fun <init> (Lio/vertx/mutiny/sqlclient/Pool;Ldev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect;Ljava/util/List;Lkotlin/coroutines/CoroutineContext;)V
-	public synthetic fun <init> (Lio/vertx/mutiny/sqlclient/Pool;Ldev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect;Ljava/util/List;Lkotlin/coroutines/CoroutineContext;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lio/vertx/mutiny/sqlclient/Pool;Ldev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect;Ljava/util/List;Lkotlin/coroutines/CoroutineContext;Ljava/time/Clock;)V
+	public synthetic fun <init> (Lio/vertx/mutiny/sqlclient/Pool;Ldev/buijs/stratastax/persistence/reactive/spi/PersistenceDialect;Ljava/util/List;Lkotlin/coroutines/CoroutineContext;Ljava/time/Clock;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun ambientQueryExecutor ()Ldev/buijs/stratastax/persistence/reactive/spi/QueryExecutor;
 	public fun isInTransaction (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun transaction (Ldev/buijs/stratastax/persistence/core/api/TransactionOptions;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;

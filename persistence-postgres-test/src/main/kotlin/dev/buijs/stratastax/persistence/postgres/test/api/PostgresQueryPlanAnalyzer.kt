@@ -14,9 +14,14 @@
  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package dev.buijs.stratastax.persistence.test.api
+@file:Suppress("SqlSourceToSinkFlow")
+
+package dev.buijs.stratastax.persistence.postgres.test.api
 
 import dev.buijs.stratastax.persistence.core.spi.RenderedQuery
+import dev.buijs.stratastax.persistence.test.api.PlanNode
+import dev.buijs.stratastax.persistence.test.api.QueryPlan
+import dev.buijs.stratastax.persistence.test.api.QueryPlanAnalyzer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.postgresql.util.PGobject
@@ -197,7 +202,7 @@ private fun json(text: String): PGobject =
 private fun sqlArrayType(array: Array<*>): String =
     when (array.javaClass.componentType) {
         UUID::class.java -> "uuid"
-        java.lang.Long::class.java -> "int8"
-        Integer::class.java -> "int4"
+        Long::class.java -> "int8"
+        Int::class.java -> "int4"
         else -> "text"
     }

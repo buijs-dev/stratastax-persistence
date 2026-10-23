@@ -228,17 +228,18 @@ public final class dev/buijs/stratastax/persistence/core/spi/MapRowContext : dev
 }
 
 public final class dev/buijs/stratastax/persistence/core/spi/QueryExecution {
-	public synthetic fun <init> (Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;JLjava/lang/Integer;Ljava/lang/String;Ljava/lang/Throwable;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;JLjava/lang/Integer;Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;JLjava/time/Instant;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/Throwable;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;JLjava/time/Instant;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;
 	public final fun component2 ()Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
 	public final fun component3-UwyO8pc ()J
-	public final fun component4 ()Ljava/lang/Integer;
-	public final fun component5 ()Ljava/lang/String;
-	public final fun component6 ()Ljava/lang/Throwable;
-	public final fun component7 ()I
-	public final fun copy-SYHnMyU (Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;JLjava/lang/Integer;Ljava/lang/String;Ljava/lang/Throwable;I)Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;
-	public static synthetic fun copy-SYHnMyU$default (Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;JLjava/lang/Integer;Ljava/lang/String;Ljava/lang/Throwable;IILjava/lang/Object;)Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;
+	public final fun component4 ()Ljava/time/Instant;
+	public final fun component5 ()Ljava/lang/Integer;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/Throwable;
+	public final fun component8 ()I
+	public final fun copy-KVH2U2I (Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;JLjava/time/Instant;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/Throwable;I)Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;
+	public static synthetic fun copy-KVH2U2I$default (Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;JLjava/time/Instant;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/Throwable;IILjava/lang/Object;)Ldev/buijs/stratastax/persistence/core/spi/QueryExecution;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBatchSize ()I
 	public final fun getDuration-UwyO8pc ()J
@@ -247,6 +248,7 @@ public final class dev/buijs/stratastax/persistence/core/spi/QueryExecution {
 	public final fun getOperation ()Ldev/buijs/stratastax/persistence/core/spi/QueryOperation;
 	public final fun getQuery ()Ldev/buijs/stratastax/persistence/core/spi/RenderedQuery;
 	public final fun getRowCount ()Ljava/lang/Integer;
+	public final fun getStartedAt ()Ljava/time/Instant;
 	public final fun getTransactionId ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;

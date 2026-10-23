@@ -39,7 +39,9 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.net.URI
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 import java.util.UUID
 import kotlin.coroutines.CoroutineContext
 
@@ -238,6 +240,26 @@ internal class VertxQueryExecutorIntegrationTest {
             assertThat(execution.operation).isEqualTo(QueryOperation.SELECT)
             assertThat(execution.rowCount).isEqualTo(1)
             assertThat(execution.failed).isFalse()
+        }
+
+    @Test
+    fun `every statement is stamped with the time it was sent by the executor's clock`() =
+        runBlocking<Unit> {
+            // given
+            val sent = Instant.parse("2026-10-22T10:15:30Z")
+            val clocked =
+                VertxQueryExecutor(
+                    Database.pool,
+                    PostgresDialect,
+                    listeners = listOf(recorder),
+                    clock = Clock.fixed(sent, ZoneOffset.UTC),
+                )
+
+            // when
+            clocked.query("SELECT 1")
+
+            // then
+            assertThat(recorder.executions().single().startedAt).isEqualTo(sent)
         }
 
     @Test

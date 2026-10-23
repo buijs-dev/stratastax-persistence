@@ -24,6 +24,7 @@ import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
+import java.time.Instant
 import kotlin.io.path.exists
 import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.name
@@ -127,6 +128,7 @@ class SnapshotAssertionTest {
                             RenderedQuery(it, emptyList()),
                             QueryOperation.of(it),
                             ZERO,
+                            Instant.EPOCH,
                             1,
                         ),
                     )

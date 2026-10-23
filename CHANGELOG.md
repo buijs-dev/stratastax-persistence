@@ -29,12 +29,18 @@ Repositories are generated as plain, literal SQL; this library supplies the runt
   `docs/code-generation.md`.
 - **CSV import** (`persistence-csv`). Reads CSV files through the same row mappers as the database,
   so seed and import data reuse the existing mapping, including list and JSON cells.
-- **Test support** (`persistence-test`). A throwaway PostgreSQL database and a harness to assert on
-  executed queries, query plans and transactions, plus scenarios and snapshots for repository
-  tests.
+- **Query observability** (`persistence-observability`). Every statement becomes an OpenTelemetry
+  span under the HTTP request that caused it, grouped per transaction and placed at its exact
+  start and end, and each request gets a query profile (count, database time, probable N+1).
+  Bind values are never exported unless a renderer is configured. Statements now carry the
+  wall-clock time they were sent (`QueryExecution.startedAt`).
+- **Test support** (`persistence-test`, `persistence-postgres-test`). A database-independent
+  harness to assert on executed queries, query plans and transactions, plus scenarios and
+  snapshots for repository tests; the PostgreSQL module adds a throwaway database and the
+  `EXPLAIN`-based plan analyzer.
 - **Documentation** under `docs/`, covering architecture, the SQL-first design, code generation,
   reading and search, writes and relations, batches, transactions, versioning and soft delete,
-  dialects, CSV import and testing.
+  dialects, CSV import, testing and observability.
 
 ### Notes
 - Explicit API mode and an API dump (`./gradlew updateKotlinAbi`) in every module.

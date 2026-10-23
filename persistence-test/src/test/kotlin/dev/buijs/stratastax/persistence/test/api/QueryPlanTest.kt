@@ -118,16 +118,4 @@ class QueryPlanTest {
             "Nested Loop\n  Seq Scan (relation=playset)\n  Index Scan (relation=game, index=game_pkey)",
         )
     }
-
-    @Test
-    fun `converts native placeholders to JDBC ones outside literals`() {
-        // given
-        val sql = "select '\$1', \"\$2\" from t where a = \$1 and b in (\$2, \$10)"
-
-        // when
-        val converted = toJdbcPlaceholders(sql)
-
-        // then
-        assertThat(converted).isEqualTo("select '\$1', \"\$2\" from t where a = ? and b in (?, ?)")
-    }
 }

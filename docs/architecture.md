@@ -27,16 +27,22 @@ persistence-reactive   runs the SQL with Vert.x, through a dialect
    ▲
    └── persistence-postgres   the PostgreSQL dialect (others can live in their own repository)
 
+persistence-observability   every statement as an OpenTelemetry span under its request (on core)
+
 persistence-test       test kit: assert on the SQL that ran (test scope only)
+   ▲
+   └── persistence-postgres-test   a PostgreSQL test database and its plan analyzer
 ```
 
-| Module                 | You use it for                                                                                                                                                      |
-|------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `persistence-core`     | The contracts a service depends on: `ReadAccess`, `CreateAccess`, `UpdateAccess`, `DeleteAccess`, `UnitOfWork`, `BatchResult` and the exceptions. No database code. |
-| `persistence-reactive` | Running statements, transactions, rendering searches, and the helpers generated write code uses. Database-neutral: the SQL syntax comes from a `PersistenceDialect`. |
-| `persistence-postgres` | `PostgresDialect`, the PostgreSQL dialect the application wires into the executors and generated code puts in each `SearchSql`.                                     |
-| `persistence-csv`      | Importing CSV files.                                                                                                                                                |
-| `persistence-test`     | Testing persistence code against a real PostgreSQL.                                                                                                                 |
+| Module                      | You use it for                                                                                                                                                       |
+|-----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `persistence-core`          | The contracts a service depends on: `ReadAccess`, `CreateAccess`, `UpdateAccess`, `DeleteAccess`, `UnitOfWork`, `BatchResult` and the exceptions. No database code.  |
+| `persistence-reactive`      | Running statements, transactions, rendering searches, and the helpers generated write code uses. Database-neutral: the SQL syntax comes from a `PersistenceDialect`. |
+| `persistence-postgres`      | `PostgresDialect`, the PostgreSQL dialect the application wires into the executors and generated code puts in each `SearchSql`.                                      |
+| `persistence-csv`           | Importing CSV files.                                                                                                                                                 |
+| `persistence-observability` | Tracing every statement in production, under the request that caused it; see [observability.md](observability.md).                                                   |
+| `persistence-test`          | Asserting on the SQL persistence code runs, independent of the database.                                                                                             |
+| `persistence-postgres-test` | Running those tests against a real PostgreSQL, with query plans.                                                                                                     |
 
 A service only needs `persistence-core`. The application's wiring and the generated access classes
 are the only code that touches `persistence-reactive` and `persistence-postgres`. That keeps services free of driver details,
